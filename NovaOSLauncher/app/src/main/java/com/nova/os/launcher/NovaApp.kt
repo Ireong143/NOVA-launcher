@@ -1,3 +1,4 @@
+
 package com.nova.os.launcher
 
 import android.app.Activity
@@ -36,6 +37,7 @@ import com.nova.os.launcher.ui.components.WallpaperLayer
 import com.nova.os.launcher.ui.control.ControlCenter
 import com.nova.os.launcher.ui.drawer.AppDrawer
 import com.nova.os.launcher.ui.home.HomeScreen
+import com.nova.os.launcher.ui.search.SearchScreen
 import com.nova.os.launcher.ui.settings.AboutScreen
 import com.nova.os.launcher.ui.settings.SettingsScreen
 import com.nova.os.launcher.ui.theme.LocalNovaColors
@@ -122,6 +124,7 @@ private fun NovaRoot(vm: NovaViewModel, settings: NovaSettings) {
         ToolLayer(overlay == Overlay.Calculator, motion) { CalculatorScreen(vm) }
         ToolLayer(overlay == Overlay.Notes, motion) { NotesScreen(vm) }
         ToolLayer(overlay == Overlay.Clock, motion) { ClockScreen(vm) }
+        ToolLayer(overlay == Overlay.Search, motion) { SearchScreen(vm) }
     }
 }
 
