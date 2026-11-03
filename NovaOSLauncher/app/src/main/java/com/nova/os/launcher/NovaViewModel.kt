@@ -1,3 +1,4 @@
+
 package com.nova.os.launcher
 
 import android.app.Application
@@ -185,6 +186,13 @@ class NovaViewModel(application: Application) : AndroidViewModel(application) {
         }
         drawerAutoFocus = focusSearch
         overlay = target
+    }
+
+    /** Open the dedicated SAND OS search screen. */
+    fun openSearch() {
+        returnTo = Overlay.None
+        drawerAutoFocus = false
+        overlay = Overlay.Search
     }
 
     /** Back button: return to the previous layer (e.g. Settings) or the home screen. */
