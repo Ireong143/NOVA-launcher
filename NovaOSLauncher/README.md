@@ -1,41 +1,72 @@
-# NOVA OS Launcher
+SAND OS
 
-Kotlin + Jetpack Compose(Material 3)로 만든 독자 디자인 런처입니다.
+SAND OS — 나만의 Android 기반 운영체제를 향한 프로젝트
 
-## 기능
-- **홈**: 디지털 시계·날짜, 날씨(Open-Meteo), 검색창, 즐겨찾기, 하단 독, 3개 페이지(홈/위젯/자주 쓰는 앱), 배경화면 변경
-- **앱 서랍**: 설치 앱 자동 로드(LauncherApps), 아이콘·이름, 초성 검색, 정렬 4종, 실행, 길게 눌러 즐겨찾기/독/정보/숨기기/삭제
-- **제어 센터**: Wi-Fi·블루투스 바로가기, 밝기·볼륨 슬라이더, 화면 회전, 다크 모드, 손전등, 비행기 모드, 배터리 정보
-- **설정**: 테마·강조색, 배경화면(프리셋/내 사진), 아이콘 크기, 글자 크기, 애니메이션, 홈 구성
-- **추가 앱**: 계산기, 메모, 시계(세계 시계/스톱워치/타이머), 앱 관리, 앱 정보
+SAND OS는 Kotlin과 Jetpack Compose를 기반으로 개발하는 독자적인 OS 프로젝트입니다.
 
-## 제스처
-위로 스와이프 = 앱 서랍 / 아래로 스와이프 = 제어 센터 / 좌우 = 페이지 이동 / 빈 곳 길게 = 빠른 메뉴
+현재는 Android 런처 형태의 초기 버전을 개발하고 있으며, 장기적으로 AOSP 기반의 독립적인 운영체제를 만드는 것을 목표로 합니다.
 
-## APK 만들기 (직접 코딩 불필요)
+주요 기능
 
-### 방법 1. GitHub Actions (추천, 설치 프로그램 필요 없음)
-1. GitHub에서 새 저장소를 만든다.
-2. 이 폴더의 **모든 파일(숨김 폴더 `.github` 포함)** 을 저장소에 업로드한다. (PC 브라우저에서 드래그&드롭 권장)
-3. 저장소의 **Actions → Build NOVA OS APK → Run workflow** (업로드하면 자동 실행됨)
-4. 완료 후 실행 결과 하단 **Artifacts → NOVA-OS-Launcher-APK** 를 내려받아 압축을 풀면 `app-debug.apk`.
+홈 화면
 
-### 방법 2. Android Studio
-폴더를 열고(Open) Gradle 동기화가 끝나면 **Build → Build APK(s)**.
-명령줄: JDK 17 + Android SDK 34 + Gradle 8.9 환경에서 `gradle assembleDebug`
-(결과: `app/build/outputs/apk/debug/app-debug.apk`)
+- 디지털 시계와 날짜
+- 날씨 표시
+- 검색 기능
+- 즐겨찾기
+- 여러 홈 화면 페이지
+- 배경화면 변경
 
-## 설치 후
-APK 설치(출처를 알 수 없는 앱 허용) → 홈 버튼 → **NOVA OS** 선택 → **항상**.
-기본 홈 앱 변경: 설정 ▸ 앱 ▸ 기본 앱 ▸ 홈 앱.
+앱 서랍
 
-## 구조
-```
-app/src/main/java/com/nova/os/launcher/
-  MainActivity.kt / NovaApp.kt / NovaViewModel.kt
-  data/      모델, 설정/메모 저장소, 앱 로더, 날씨, 계산 엔진
-  system/    Wi-Fi·밝기·회전·손전등 등 시스템 연동
-  ui/theme/  NOVA 디자인 토큰(색상, 모션, 배경화면)
-  ui/components/ 글래스 카드, 슬라이더, 앱 아이콘 등 공통 컴포넌트
-  ui/home, drawer, control, settings, apps, tools/  각 화면
-```
+- 설치된 앱 자동 표시
+- 앱 검색 및 실행
+- 앱 정렬
+- 즐겨찾기 및 앱 관리
+
+제어 센터
+
+- Wi-Fi 및 블루투스 바로가기
+- 화면 밝기와 볼륨
+- 화면 회전
+- 다크 모드
+- 손전등 및 비행기 모드
+- 배터리 정보
+
+시스템 설정
+
+- 테마 및 강조색
+- 배경화면 설정
+- 아이콘 및 글자 크기
+- 애니메이션 설정
+- 홈 화면 구성
+
+추가 앱
+
+- 계산기
+- 메모
+- 시계 및 타이머
+- 앱 관리 및 앱 정보
+
+개발 로드맵
+
+1. 프로젝트 이름과 디자인을 SAND OS로 통일
+2. 홈 화면 및 앱 서랍 개선
+3. 잠금 화면과 알림 센터 개발
+4. 자체 설정 및 제어 센터 개발
+5. SAND OS 전용 시스템 UI 개발
+6. AOSP 기반 실제 운영체제 개발
+7. 지원 기기 테스트 및 설치
+
+개발 환경
+
+- 언어: Kotlin
+- UI: Jetpack Compose
+- 빌드: Gradle
+- 자동 빌드: GitHub Actions
+
+프로젝트 목표
+
+단순한 런처를 넘어 독자적인 디자인과 기능을 갖춘 실제 운영체제 SAND OS를 만드는 것이 최종 목표입니다.
+
+Project: SAND OS
