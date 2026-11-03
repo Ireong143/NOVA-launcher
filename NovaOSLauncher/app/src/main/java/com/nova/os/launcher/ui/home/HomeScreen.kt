@@ -54,6 +54,11 @@ import java.time.format.FormatStyle
 import java.util.Locale
 import kotlin.math.absoluteValue
 
+private val AuroraWhite = Color(0xFFF7FAFF)
+private val AuroraMuted = Color(0xFFC4D2DF)
+private val GlassSurface = Color(0x26FFFFFF)
+private val GlassStroke = Color(0x35FFFFFF)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(vm: NovaViewModel) {
@@ -99,7 +104,6 @@ fun HomeScreen(vm: NovaViewModel) {
                 )
             }
     ) {
-        // 오로라 배경 레이어 1
         Box(
             Modifier
                 .fillMaxWidth()
@@ -117,7 +121,6 @@ fun HomeScreen(vm: NovaViewModel) {
                 )
         )
 
-        // 오로라 배경 레이어 2
         Box(
             Modifier
                 .fillMaxWidth()
@@ -136,7 +139,6 @@ fun HomeScreen(vm: NovaViewModel) {
                 )
         )
 
-        // 오로라 배경 레이어 3
         Box(
             Modifier
                 .fillMaxWidth()
@@ -145,10 +147,7 @@ fun HomeScreen(vm: NovaViewModel) {
                 .offset(x = (-70).dp, y = (-100).dp)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(
-                            Color(0x2238BBA4),
-                            Color.Transparent
-                        ),
+                        colors = listOf(Color(0x2238BBA4), Color.Transparent),
                         radius = 800f
                     )
                 )
@@ -208,8 +207,6 @@ fun HomeScreen(vm: NovaViewModel) {
 
 @Composable
 private fun HomeTopBar(battery: BatteryState, onClick: () -> Unit) {
-    val c = LocalNovaColors.current
-
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -219,20 +216,20 @@ private fun HomeTopBar(battery: BatteryState, onClick: () -> Unit) {
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 4.sp,
-            color = Color(0xFFE4EEE9)
+            color = AuroraWhite
         )
 
         Spacer(Modifier.weight(1f))
 
         Pressable(
             Modifier
-                .clip(RoundedCornerShape(50))
-                .background(Color(0x334FFFFFFF))
-                .border(1.dp, Color(0x338FFFFFFF), RoundedCornerShape(50)),
+                .clip(CircleShape)
+                .background(Color(0x26FFFFFF))
+                .border(1.dp, GlassStroke, CircleShape),
             onClick = onClick
         ) {
             Row(
-                Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -242,9 +239,7 @@ private fun HomeTopBar(battery: BatteryState, onClick: () -> Unit) {
                     modifier = Modifier.size(18.dp),
                     tint = if (battery.charging) Color(0xFF8DE8C6) else Color.White
                 )
-
                 Spacer(Modifier.width(6.dp))
-
                 Text(
                     if (battery.valid) "${battery.percent}%" else "--",
                     fontSize = 13.sp,
@@ -269,7 +264,7 @@ private fun MainPage(vm: NovaViewModel, settings: NovaSettings, onLongPress: () 
             }
             .padding(horizontal = 20.dp)
     ) {
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(8.dp))
         ClockWidget(settings)
         Spacer(Modifier.height(16.dp))
 
@@ -343,16 +338,28 @@ private fun WidgetsPage(vm: NovaViewModel, onLongPress: () -> Unit) {
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Spacer(Modifier.height(4.dp))
-        Text("오늘", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Spacer(Modifier.height(8.dp))
 
-        GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
-            Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "오늘",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold,
+            color = AuroraWhite
+        )
+
+        GlassCard(
+            Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(30.dp)
+        ) {
+            Row(
+                Modifier.padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 BatteryRing(battery.percent, battery.charging, Modifier.size(76.dp))
                 Spacer(Modifier.width(18.dp))
 
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     StatBar("저장공간", stats.storageUsed, stats.storageTotal)
@@ -363,30 +370,64 @@ private fun WidgetsPage(vm: NovaViewModel, onLongPress: () -> Unit) {
 
         GlassCard(
             Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(30.dp),
             onClick = { vm.open(Overlay.Notes) }
         ) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Rounded.EditNote, size = 32.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Text("최근 메모", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    IconBadge(Icons.Rounded.EditNote, size = 36.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            "최근 메모",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
+                            color = AuroraWhite
+                        )
+                        Text(
+                            "나의 기록",
+                            fontSize = 12.sp,
+                            color = AuroraMuted
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Icon(
+                        Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = AuroraMuted
+                    )
                 }
 
                 val recent = notes.filter { it.text.isNotBlank() }
                     .sortedByDescending { it.updatedAt }.take(3)
 
                 if (recent.isEmpty()) {
-                    Text("탭해서 첫 메모를 작성해 보세요", color = c.textSecondary, fontSize = 14.sp)
+                    Text(
+                        "탭해서 첫 메모를 작성해 보세요",
+                        color = AuroraMuted,
+                        fontSize = 14.sp
+                    )
                 } else {
                     recent.forEach {
-                        Text(it.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 15.sp)
+                        Text(
+                            it.title,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontSize = 15.sp,
+                            color = AuroraWhite
+                        )
                     }
                 }
             }
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             ToolTile(Icons.Rounded.Calculate, "계산기", Modifier.weight(1f)) {
                 vm.open(Overlay.Calculator)
             }
@@ -405,14 +446,20 @@ private fun WidgetsPage(vm: NovaViewModel, onLongPress: () -> Unit) {
 
 @Composable
 fun ToolTile(icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    GlassCard(modifier, shape = RoundedCornerShape(22.dp), onClick = onClick) {
+    GlassCard(modifier, shape = RoundedCornerShape(24.dp), onClick = onClick) {
         Column(
-            Modifier.fillMaxWidth().padding(vertical = 14.dp),
+            Modifier.fillMaxWidth().padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            IconBadge(icon, size = 36.dp)
-            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+            IconBadge(icon, size = 38.dp)
+            Text(
+                label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                color = AuroraWhite
+            )
         }
     }
 }
@@ -432,8 +479,13 @@ private fun FrequentPage(vm: NovaViewModel, settings: NovaSettings, onLongPress:
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Spacer(Modifier.height(4.dp))
-        Text("자주 쓰는 앱", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "자주 쓰는 앱",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold,
+            color = AuroraWhite
+        )
 
         if (apps.isEmpty()) {
             GlassCard(Modifier.fillMaxWidth()) {
@@ -492,7 +544,6 @@ fun rememberMinuteClock(): State<LocalDateTime> {
 
 @Composable
 private fun ClockWidget(settings: NovaSettings) {
-    val c = LocalNovaColors.current
     val now by rememberMinuteClock()
     val locale = Locale.getDefault()
 
@@ -515,16 +566,62 @@ private fun ClockWidget(settings: NovaSettings) {
         )
     }
 
-    if (settings.clockStyle == ClockStyle.LARGE) {
-        Column(Modifier.padding(start = 2.dp)) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(32.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        Color(0x35FFFFFF),
+                        Color(0x18A7D9D0),
+                        Color(0x243F6C9D)
+                    )
+                )
+            )
+            .border(1.dp, GlassStroke, RoundedCornerShape(32.dp))
+    ) {
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .size(130.dp)
+                .offset(x = 35.dp, y = (-40).dp)
+                .background(
+                    Brush.radialGradient(
+                        listOf(Color(0x4459DCC5), Color.Transparent)
+                    )
+                )
+        )
+
+        Column(
+            Modifier.padding(horizontal = 22.dp, vertical = 18.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "오늘",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AuroraMuted
+                )
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    Icons.Rounded.WbSunny,
+                    contentDescription = null,
+                    tint = Color(0xFFFFD58A),
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+
+            Spacer(Modifier.height(2.dp))
+
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     timeText,
-                    fontSize = 80.sp,
-                    lineHeight = 84.sp,
+                    fontSize = if (settings.clockStyle == ClockStyle.LARGE) 76.sp else 54.sp,
+                    lineHeight = if (settings.clockStyle == ClockStyle.LARGE) 82.sp else 60.sp,
                     fontWeight = FontWeight.Light,
                     letterSpacing = (-3).sp,
-                    color = Color.White,
+                    color = AuroraWhite,
                     maxLines = 1,
                     softWrap = false
                 )
@@ -532,52 +629,22 @@ private fun ClockWidget(settings: NovaSettings) {
                 if (!settings.use24h) {
                     Text(
                         ampm,
-                        Modifier.padding(start = 8.dp, bottom = 14.dp),
-                        fontSize = 20.sp,
-                        color = Color(0xFFB8C8C5)
+                        Modifier.padding(start = 7.dp, bottom = 12.dp),
+                        fontSize = 17.sp,
+                        color = AuroraMuted
                     )
                 }
             }
 
-            Text(
-                date,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFFB8C8C5),
-                maxLines = 1
-            )
-        }
-    } else {
-        Row(
-            Modifier.padding(start = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                timeText,
-                fontSize = 44.sp,
-                fontWeight = FontWeight.Light,
-                letterSpacing = (-1).sp,
-                color = Color.White,
-                maxLines = 1
-            )
-
-            if (!settings.use24h) {
-                Text(
-                    ampm,
-                    Modifier.padding(start = 6.dp),
-                    fontSize = 16.sp,
-                    color = Color(0xFFB8C8C5)
-                )
-            }
-
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.height(3.dp))
 
             Text(
                 date,
                 fontSize = 14.sp,
-                color = Color(0xFFB8C8C5),
-                maxLines = 2,
-                modifier = Modifier.weight(1f)
+                fontWeight = FontWeight.Medium,
+                color = AuroraMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -585,28 +652,28 @@ private fun ClockWidget(settings: NovaSettings) {
 
 @Composable
 private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
-    val c = LocalNovaColors.current
-
     GlassCard(
         Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(28.dp),
         onClick = onClick
     ) {
         Row(
-            Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 19.dp, vertical = 17.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             when (weather.status) {
                 WeatherStatus.READY -> {
-                    Text(weather.emoji, fontSize = 36.sp)
-                    Spacer(Modifier.width(14.dp))
+                    Text(weather.emoji, fontSize = 42.sp)
+                    Spacer(Modifier.width(15.dp))
 
                     Column(Modifier.weight(1f)) {
                         Text(
                             "${weather.tempC}°",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = AuroraWhite
                         )
 
                         val place = if (weather.place.isNotBlank()) " · ${weather.place}" else ""
@@ -614,30 +681,44 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
                         Text(
                             weather.description + place,
                             fontSize = 13.sp,
-                            color = Color(0xFFB8C8C5),
-                            maxLines = 1
+                            color = AuroraMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("최고 ${weather.high}°", fontSize = 13.sp, color = Color.White)
-                        Text("최저 ${weather.low}°", fontSize = 13.sp, color = Color(0xFFB8C8C5))
+                        Text(
+                            "최고 ${weather.high}°",
+                            fontSize = 12.sp,
+                            color = AuroraWhite
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "최저 ${weather.low}°",
+                            fontSize = 12.sp,
+                            color = AuroraMuted
+                        )
                     }
                 }
 
                 WeatherStatus.LOADING -> {
-                    Text("🌡️", fontSize = 30.sp)
+                    Text("🌡️", fontSize = 34.sp)
                     Spacer(Modifier.width(14.dp))
-                    Text("날씨를 불러오는 중…", color = Color(0xFFB8C8C5), fontSize = 14.sp)
+                    Text("날씨를 불러오는 중…", color = AuroraMuted, fontSize = 14.sp)
                 }
 
                 WeatherStatus.ERROR -> {
-                    Text("☁️", fontSize = 30.sp)
+                    Text("☁️", fontSize = 34.sp)
                     Spacer(Modifier.width(14.dp))
-                    Text(
-                        "날씨를 불러오지 못했어요\n탭해서 다시 시도",
-                        color = Color(0xFFB8C8C5),
-                        fontSize = 13.sp
+                    Column(Modifier.weight(1f)) {
+                        Text("날씨 정보를 가져오지 못했어요", color = AuroraWhite, fontSize = 13.sp)
+                        Text("탭해서 다시 시도", color = AuroraMuted, fontSize = 12.sp)
+                    }
+                    Icon(
+                        Icons.Rounded.Refresh,
+                        contentDescription = "새로고침",
+                        tint = AuroraMuted
                     )
                 }
             }
@@ -647,34 +728,51 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
 
 @Composable
 private fun SearchPill(onClick: () -> Unit) {
-    GlassCard(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(50),
-        onClick = onClick
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(CircleShape)
+            .background(Color(0x2AFFFFFF))
+            .border(1.dp, GlassStroke, CircleShape)
     ) {
-        Row(
-            Modifier.padding(horizontal = 20.dp, vertical = 15.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Pressable(
+            Modifier.fillMaxWidth(),
+            onClick = onClick
         ) {
-            Icon(
-                Icons.Rounded.Search,
-                null,
-                Modifier.size(22.dp),
-                tint = Color(0xFFB8C8C5)
-            )
-            Spacer(Modifier.width(12.dp))
-            Text("앱, 웹 검색", color = Color(0xFFB8C8C5), fontSize = 16.sp)
+            Row(
+                Modifier.padding(horizontal = 19.dp, vertical = 15.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Rounded.Search,
+                    null,
+                    Modifier.size(21.dp),
+                    tint = AuroraMuted
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    "앱 또는 웹 검색",
+                    color = AuroraMuted,
+                    fontSize = 15.sp
+                )
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    Icons.Rounded.Mic,
+                    contentDescription = "음성 검색",
+                    modifier = Modifier.size(19.dp),
+                    tint = AuroraMuted
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun PageDots(count: Int, current: Int) {
-    val c = LocalNovaColors.current
     val motion = LocalNovaMotion.current
 
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        Modifier.fillMaxWidth().padding(vertical = 7.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -702,24 +800,52 @@ private fun PageDots(count: Int, current: Int) {
 
 @Composable
 private fun Dock(vm: NovaViewModel, dockApps: List<AppInfo>, settings: NovaSettings) {
-    GlassCard(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(32.dp),
-        strong = true
+    val dockIcon = settings.iconSizeDp.coerceIn(40, 52).dp
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(30.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0x48FFFFFF),
+                        Color(0x28FFFFFF),
+                        Color(0x32B9DCD8)
+                    )
+                )
+            )
+            .border(1.dp, Color(0x42FFFFFF), RoundedCornerShape(30.dp))
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 9.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val dockIcon = settings.iconSizeDp.coerceAtMost(60).dp
-
-            dockApps.forEach { app ->
-                AppIconCell(app, vm, dockIcon, showLabel = false)
+            dockApps.take(5).forEach { app ->
+                Box(
+                    Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AppIconCell(
+                        app,
+                        vm,
+                        dockIcon,
+                        showLabel = false
+                    )
+                }
             }
 
-            DrawerButton(size = dockIcon) {
-                vm.open(Overlay.Drawer)
+            Box(
+                Modifier.weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                DrawerButton(size = dockIcon) {
+                    vm.open(Overlay.Drawer)
+                }
             }
         }
     }
@@ -727,17 +853,15 @@ private fun Dock(vm: NovaViewModel, dockApps: List<AppInfo>, settings: NovaSetti
 
 @Composable
 private fun DrawerButton(size: Dp, onClick: () -> Unit) {
-    val c = LocalNovaColors.current
-
     Pressable(
         Modifier
             .size(size)
-            .clip(RoundedCornerShape(size * 0.3f))
+            .clip(RoundedCornerShape(size * 0.30f))
             .background(
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFF58BDA9),
-                        Color(0xFF557DAB)
+                        Color(0xFF62D6C0),
+                        Color(0xFF578CCB)
                     )
                 )
             ),
@@ -795,22 +919,32 @@ fun BatteryRing(percent: Int, charging: Boolean, modifier: Modifier = Modifier) 
             )
         }
 
-        Text("$percent%", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+        Text(
+            "$percent%",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = AuroraWhite
+        )
     }
 }
 
 @Composable
 private fun StatBar(label: String, used: Long, total: Long) {
-    val c = LocalNovaColors.current
     val fraction = if (total > 0) (used.toFloat() / total).coerceIn(0f, 1f) else 0f
 
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Row {
-            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), color = Color.White)
+            Text(
+                label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+                color = AuroraWhite
+            )
             Text(
                 "${SystemActions.formatBytes(used)} / ${SystemActions.formatBytes(total)}",
                 fontSize = 11.sp,
-                color = Color(0xFFB8C8C5)
+                color = AuroraMuted
             )
         }
 
@@ -822,7 +956,7 @@ private fun StatBar(label: String, used: Long, total: Long) {
             Box(
                 Modifier.fillMaxWidth(fraction).height(6.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF58BDA9))
+                    .background(Color(0xFF65D6C1))
             )
         }
     }
