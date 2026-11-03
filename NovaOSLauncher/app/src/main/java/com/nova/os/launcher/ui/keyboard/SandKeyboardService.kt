@@ -1,7 +1,6 @@
 
 package com.nova.os.launcher.keyboard
 
-import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
@@ -14,107 +13,133 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.TextView
 
 class SandKeyboardService : InputMethodService() {
 
     private var koreanMode = true
     private var toneGenerator: ToneGenerator? = null
+    private var composing = ""
 
     private val backgroundColor = Color.rgb(225, 228, 234)
     private val keyColor = Color.WHITE
     private val textColor = Color.rgb(35, 38, 45)
+
+    private val consonants = listOf(
+        "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ",
+        "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ",
+        "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+    )
+
+    private val vowels = listOf(
+        "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ",
+        "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ",
+        "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"
+    )
+
+    private val initial = listOf(
+        "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ",
+        "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ",
+        "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+    )
+
+    private val medial = listOf(
+        "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ",
+        "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ",
+        "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"
+    )
+
+    private val finalConsonants = listOf(
+        "", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ",
+        "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ",
+        "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ",
+        "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+    )
 
     override fun onCreate() {
         super.onCreate()
         toneGenerator = ToneGenerator(AudioManager.STREAM_SYSTEM, 35)
     }
 
-    override fun onCreateInputView(): View {
-        return createKeyboard()
-    }
+    override fun onCreateInputView(): View = createKeyboard()
 
     private fun createKeyboard(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(4, 8, 4, 8)
+            setPadding(4.dp(), 8.dp(), 4.dp(), 8.dp())
             setBackgroundColor(backgroundColor)
         }
 
-        // 숫자 상단 배열
         addRow(root, listOf(
             "1", "2", "3", "4", "5",
             "6", "7", "8", "9", "0"
         ))
 
-        // 첫 번째 문자 줄
         addRow(
             root,
-            if (koreanMode) {
+            if (koreanMode)
                 listOf("ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅅ", "ㅛ", "ㅕ", "ㅑ", "ㅐ", "ㅔ")
-            } else {
+            else
                 listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
-            }
         )
 
-        // 두 번째 문자 줄
         addRow(
             root,
-            if (koreanMode) {
+            if (koreanMode)
                 listOf("ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅎ", "ㅗ", "ㅓ", "ㅏ", "ㅣ")
-            } else {
+            else
                 listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
-            }
         )
 
-        // 세 번째 문자 줄
         addRow(
             root,
-            if (koreanMode) {
+            if (koreanMode)
                 listOf("ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅠ", "ㅜ", "ㅡ")
-            } else {
+            else
                 listOf("z", "x", "c", "v", "b", "n", "m")
-            }
         )
 
-        // 하단 기능 버튼
         val bottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
 
         addSpecialButton(bottom, "😊", 1f) {
+            finishComposition()
             commit("😊")
         }
 
         addSpecialButton(bottom, "한/영", 1.2f) {
+            finishComposition()
             koreanMode = !koreanMode
             setInputView(createKeyboard())
         }
 
         addSpecialButton(bottom, "클립", 1f) {
+            finishComposition()
             pasteClipboard()
         }
 
         addSpecialButton(bottom, "⌫", 1f) {
-            currentInputConnection?.deleteSurroundingText(1, 0)
+            deleteCharacter()
         }
 
         addSpecialButton(bottom, "공백", 1.5f) {
+            finishComposition()
             commit(" ")
         }
 
         addSpecialButton(bottom, "↵", 1f) {
-            val connection = currentInputConnection
+            finishComposition()
             val action = currentInputEditorInfo?.imeOptions
                 ?.and(EditorInfo.IME_MASK_ACTION)
 
-            if (action != null && action != EditorInfo.IME_ACTION_NONE &&
+            if (action != null &&
+                action != EditorInfo.IME_ACTION_NONE &&
                 action != EditorInfo.IME_ACTION_UNSPECIFIED
             ) {
-                connection?.performEditorAction(action)
+                currentInputConnection?.performEditorAction(action)
             } else {
-                connection?.commitText("\n", 1)
+                commit("\n")
             }
         }
 
@@ -129,10 +154,7 @@ class SandKeyboardService : InputMethodService() {
         return root
     }
 
-    private fun addRow(
-        parent: LinearLayout,
-        keys: List<String>
-    ) {
+    private fun addRow(parent: LinearLayout, keys: List<String>) {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -143,16 +165,19 @@ class SandKeyboardService : InputMethodService() {
 
             button.setOnClickListener {
                 playSound()
-                commit(key)
+                if (key.length == 1) {
+                    if (koreanMode) {
+                        typeKorean(key)
+                    } else {
+                        finishComposition()
+                        commit(key)
+                    }
+                }
             }
 
             row.addView(
                 button,
-                LinearLayout.LayoutParams(
-                    0,
-                    43.dp(),
-                    1f
-                ).apply {
+                LinearLayout.LayoutParams(0, 43.dp(), 1f).apply {
                     setMargins(2.dp(), 3.dp(), 2.dp(), 3.dp())
                 }
             )
@@ -202,14 +227,97 @@ class SandKeyboardService : InputMethodService() {
 
         parent.addView(
             button,
-            LinearLayout.LayoutParams(
-                0,
-                44.dp(),
-                weight
-            ).apply {
+            LinearLayout.LayoutParams(0, 44.dp(), weight).apply {
                 setMargins(2.dp(), 2.dp(), 2.dp(), 2.dp())
             }
         )
+    }
+
+    private fun typeKorean(key: String) {
+        val connection = currentInputConnection ?: return
+
+        if (key in consonants) {
+            if (composing.isNotEmpty() && composing.last() in vowels) {
+                val combined = combineSyllable(composing, key)
+                if (combined != null) {
+                    composing = combined
+                    connection.setComposingText(composing, 1)
+                    return
+                }
+            }
+            finishComposition()
+            composing = key
+            connection.setComposingText(composing, 1)
+            return
+        }
+
+        if (key in vowels) {
+            if (composing.isEmpty()) {
+                composing = key
+            } else {
+                val combined = combineSyllable(composing, key)
+                composing = combined ?: (composing + key)
+            }
+            connection.setComposingText(composing, 1)
+            return
+        }
+
+        finishComposition()
+        commit(key)
+    }
+
+    private fun combineSyllable(current: String, next: String): String? {
+        if (current.length == 1 && current[0] in initial[0][0]..initial.last()[0]) {
+            if (next in medial) {
+                val cho = initial.indexOf(current)
+                val jung = medial.indexOf(next)
+                if (cho >= 0 && jung >= 0) {
+                    return String(charArrayOf(
+                        (0xAC00 + (cho * 21 + jung) * 28).toChar()
+                    ))
+                }
+            }
+        }
+
+        if (current.length == 1 && current[0].code in 0xAC00..0xD7A3) {
+            val code = current[0].code
+            val jong = code % 28
+            val cho = (code - 0xAC00) / 588
+            val jung = (code - 0xAC00) % 588 / 28
+
+            if (jong == 0 && next in finalConsonants.drop(1)) {
+                val index = finalConsonants.indexOf(next)
+                if (index > 0) {
+                    return String(charArrayOf(
+                        (0xAC00 + (cho * 21 + jung) * 28 + index).toChar()
+                    ))
+                }
+            }
+        }
+
+        return null
+    }
+
+    private fun finishComposition() {
+        if (composing.isNotEmpty()) {
+            currentInputConnection?.finishComposingText()
+            composing = ""
+        }
+    }
+
+    private fun deleteCharacter() {
+        val connection = currentInputConnection ?: return
+
+        if (composing.isNotEmpty()) {
+            composing = composing.dropLast(1)
+            if (composing.isEmpty()) {
+                connection.commitText("", 1)
+            } else {
+                connection.setComposingText(composing, 1)
+            }
+        } else {
+            connection.deleteSurroundingText(1, 0)
+        }
     }
 
     private fun commit(value: String) {
@@ -222,12 +330,12 @@ class SandKeyboardService : InputMethodService() {
         ) as ClipboardManager
 
         if (clipboard.hasPrimaryClip()) {
-            val item = clipboard.primaryClip?.getItemAt(0)
-            val text = item?.coerceToText(this)?.toString()
+            val text = clipboard.primaryClip
+                ?.getItemAt(0)
+                ?.coerceToText(this)
+                ?.toString()
 
-            if (!text.isNullOrEmpty()) {
-                commit(text)
-            }
+            if (!text.isNullOrEmpty()) commit(text)
         }
     }
 
@@ -238,12 +346,15 @@ class SandKeyboardService : InputMethodService() {
                 35
             )
         } catch (_: Exception) {
-            // 효과음 재생에 실패해도 입력은 계속 작동
         }
     }
 
-    private fun Int.dp(): Int {
-        return (this * resources.displayMetrics.density).toInt()
+    private fun Int.dp(): Int =
+        (this * resources.displayMetrics.density).toInt()
+
+    override fun onFinishInput() {
+        finishComposition()
+        super.onFinishInput()
     }
 
     override fun onDestroy() {
