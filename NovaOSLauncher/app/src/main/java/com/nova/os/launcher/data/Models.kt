@@ -1,3 +1,4 @@
+
 package com.nova.os.launcher.data
 
 import android.content.ComponentName
@@ -6,7 +7,10 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 
 /** Full-screen layers that can be shown above the home screen. */
-enum class Overlay { None, Drawer, Control, Settings, Calculator, Notes, Clock, Apps, About }
+enum class Overlay {
+    None, Drawer, Control, Settings,
+    Calculator, Notes, Clock, Apps, About, Search
+}
 
 @Immutable
 data class AppInfo(
