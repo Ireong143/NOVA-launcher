@@ -3,12 +3,17 @@ package com.nova.os.launcher.keyboard
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -18,15 +23,21 @@ class SandKeyboardService : InputMethodService() {
 
     private var koreanMode = true
     private var shiftEnabled = false
+    private var symbolMode = false
     private var toneGenerator: ToneGenerator? = null
 
     private var cho = -1
     private var jung = -1
     private var jong = 0
 
-    private val backgroundColor = Color.rgb(225, 228, 234)
-    private val keyColor = Color.WHITE
-    private val textColor = Color.rgb(35, 38, 45)
+    private val handler = Handler(Looper.getMainLooper())
+
+    // SAND Keyboard colors
+    private val backgroundColor = Color.rgb(91, 94, 100)
+    private val keyColor = Color.rgb(153, 157, 164)
+    private val specialKeyColor = Color.rgb(116, 121, 130)
+    private val textColor = Color.WHITE
+    private val accentColor = Color.rgb(111, 190, 205)
 
     private val initials = listOf(
         "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ",
@@ -112,59 +123,76 @@ class SandKeyboardService : InputMethodService() {
         "ㅄ" to Pair("ㅂ", "ㅅ")
     )
 
+    private val symbolKeys = listOf(
+        "!", "@", "#", "$", "%", "&", "*", "-", "+", "="
+    )
+
     override fun onCreate() {
         super.onCreate()
         toneGenerator = ToneGenerator(AudioManager.STREAM_SYSTEM, 35)
     }
 
-    override fun onCreateInputView(): View = createKeyboard()
+    override fun onCreateInputView(): View {
+        return createKeyboard()
+    }
 
     private fun createKeyboard(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(4.dp(), 8.dp(), 4.dp(), 8.dp())
+            setPadding(4.dp(), 7.dp(), 4.dp(), 7.dp())
             setBackgroundColor(backgroundColor)
         }
 
-        addRow(
-            root,
+        // Number / symbol row
+        val topKeys = if (symbolMode) {
+            symbolKeys
+        } else {
             listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
-        ) { key ->
+        }
+
+        addRow(root, topKeys, 39) { key ->
             finishComposition()
             commit(key)
         }
 
-        val row1 = "qwertyuiop".map { it.toString() }
-        val row2 = "asdfghjkl".map { it.toString() }
+        // QWERTY first row
+        val row1 = "qwertyuiop".map { displayKey(it) }
 
-        addRow(root, row1.map { displayKey(it[0]) }) { label ->
+        addRow(root, row1, 47) { label ->
             typeEnglishOrKorean(label)
         }
 
-        addRow(root, row2.map { displayKey(it[0]) }) { label ->
+        // QWERTY second row
+        val row2 = "asdfghjkl".map { displayKey(it) }
+
+        addRow(root, row2, 47) { label ->
             typeEnglishOrKorean(label)
         }
 
+        // Third row
         val row3 = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
 
-        addSpecialButton(row3, if (shiftEnabled) "⇧" else "↑", 1.3f) {
+        addSpecialButton(
+            row3,
+            if (shiftEnabled) "⇧" else "↑",
+            1.25f
+        ) {
             shiftEnabled = !shiftEnabled
-            setInputView(createKeyboard())
+            refreshKeyboard()
         }
 
         "zxcvbnm".forEach { character ->
             val label = displayKey(character)
+
             addKey(row3, label, 1f) {
                 typeEnglishOrKorean(label)
             }
         }
 
-        addSpecialButton(row3, "⌫", 1.3f) {
-            deleteCharacter()
-        }
+        addRepeatDeleteButton(row3, "⌫", 1.3f)
 
         root.addView(
             row3,
@@ -174,35 +202,39 @@ class SandKeyboardService : InputMethodService() {
             )
         )
 
+        // Bottom row
         val bottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
 
-        addSpecialButton(bottom, "😊", 1f) {
+        addSpecialButton(bottom, "😊", 0.85f) {
             finishComposition()
             commit("😊")
         }
 
-        addSpecialButton(bottom, "한/영", 1.2f) {
+        addSpecialButton(
+            bottom,
+            if (koreanMode) "한/영" else "EN/한",
+            1.0f
+        ) {
             finishComposition()
             koreanMode = !koreanMode
             shiftEnabled = false
-            setInputView(createKeyboard())
+            symbolMode = false
+            refreshKeyboard()
         }
 
-        addSpecialButton(bottom, "클립", 1f) {
+        addSpaceButton(bottom, 2.8f)
+
+        addSpecialButton(bottom, "클립", 0.9f) {
             finishComposition()
             pasteClipboard()
         }
 
-        addSpecialButton(bottom, "공백", 1.5f) {
+        addSpecialButton(bottom, "↵", 0.9f) {
             finishComposition()
-            commit(" ")
-        }
 
-        addSpecialButton(bottom, "↵", 1f) {
-            finishComposition()
             val action = currentInputEditorInfo?.imeOptions
                 ?.and(EditorInfo.IME_MASK_ACTION)
 
@@ -220,7 +252,34 @@ class SandKeyboardService : InputMethodService() {
             bottom,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                52.dp()
+                51.dp()
+            )
+        )
+
+        // Language / symbol controls
+        val footer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(12.dp(), 2.dp(), 12.dp(), 0)
+        }
+
+        addFooterButton(footer, "◎", 1f) {
+            symbolMode = !symbolMode
+            finishComposition()
+            refreshKeyboard()
+        }
+
+        addFooterButton(footer, "SAND", 1f) {
+            finishComposition()
+            koreanMode = !koreanMode
+            refreshKeyboard()
+        }
+
+        root.addView(
+            footer,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                29.dp()
             )
         )
 
@@ -246,6 +305,7 @@ class SandKeyboardService : InputMethodService() {
     private fun addRow(
         parent: LinearLayout,
         keys: List<String>,
+        height: Int,
         action: (String) -> Unit
     ) {
         val row = LinearLayout(this).apply {
@@ -255,6 +315,7 @@ class SandKeyboardService : InputMethodService() {
 
         keys.forEach { key ->
             addKey(row, key, 1f) {
+                playSound()
                 action(key)
             }
         }
@@ -263,7 +324,7 @@ class SandKeyboardService : InputMethodService() {
             row,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                49.dp()
+                height.dp()
             )
         )
     }
@@ -275,6 +336,7 @@ class SandKeyboardService : InputMethodService() {
         action: () -> Unit
     ) {
         val button = createKeyButton(label)
+
         button.setOnClickListener {
             playSound()
             action()
@@ -288,15 +350,30 @@ class SandKeyboardService : InputMethodService() {
         )
     }
 
-    private fun createKeyButton(label: String): Button {
+    private fun createKeyButton(
+        label: String,
+        special: Boolean = false
+    ): Button {
         return Button(this).apply {
             text = label
-            textSize = 16f
+            textSize = if (label.length > 2) 13f else 17f
             setTextColor(textColor)
             typeface = Typeface.DEFAULT_BOLD
             isAllCaps = false
-            backgroundTintList =
-                android.content.res.ColorStateList.valueOf(keyColor)
+
+            backgroundTintList = null
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 9.dp().toFloat()
+                setColor(
+                    if (special) specialKeyColor else keyColor
+                )
+                setStroke(
+                    1.dp(),
+                    Color.argb(35, 255, 255, 255)
+                )
+            }
+
             stateListAnimator = null
             elevation = 1.dp().toFloat()
             minWidth = 0
@@ -313,16 +390,182 @@ class SandKeyboardService : InputMethodService() {
         weight: Float,
         action: () -> Unit
     ) {
-        addKey(parent, label, weight, action)
+        val button = createKeyButton(label, true)
+
+        button.setOnClickListener {
+            playSound()
+            action()
+        }
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(0, 43.dp(), weight).apply {
+                setMargins(2.dp(), 3.dp(), 2.dp(), 3.dp())
+            }
+        )
+    }
+
+    private fun addFooterButton(
+        parent: LinearLayout,
+        label: String,
+        weight: Float,
+        action: () -> Unit
+    ) {
+        val button = Button(this).apply {
+            text = label
+            textSize = 13f
+            setTextColor(accentColor)
+            typeface = Typeface.DEFAULT_BOLD
+            isAllCaps = false
+            backgroundTintList = ColorStateList.valueOf(backgroundColor)
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(0, 0, 0, 0)
+            stateListAnimator = null
+        }
+
+        button.setOnClickListener(action)
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(0, 28.dp(), weight)
+        )
+    }
+
+    // Space: tap = space, long press = continuous deletion
+    private fun addSpaceButton(
+        parent: LinearLayout,
+        weight: Float
+    ) {
+        val button = createKeyButton("간격", true)
+
+        button.textSize = 15f
+
+        var isRepeating = false
+        var repeatTask: Runnable? = null
+
+        button.setOnTouchListener { view, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    isRepeating = false
+                    playSound()
+
+                    val task = object : Runnable {
+                        override fun run() {
+                            isRepeating = true
+                            deleteCharacter()
+                            repeatTask = this
+                            handler.postDelayed(this, 75)
+                        }
+                    }
+
+                    repeatTask = task
+                    handler.postDelayed(task, 450)
+                    true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    repeatTask?.let { handler.removeCallbacks(it) }
+
+                    if (!isRepeating) {
+                        finishComposition()
+                        commit(" ")
+                    }
+
+                    view.performClick()
+                    true
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    repeatTask?.let { handler.removeCallbacks(it) }
+                    true
+                }
+
+                else -> true
+            }
+        }
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(0, 43.dp(), weight).apply {
+                setMargins(3.dp(), 3.dp(), 3.dp(), 3.dp())
+            }
+        )
+    }
+
+    // Backspace: tap = one deletion, long press = continuous deletion
+    private fun addRepeatDeleteButton(
+        parent: LinearLayout,
+        label: String,
+        weight: Float
+    ) {
+        val button = createKeyButton(label, true)
+
+        var isRepeating = false
+        var repeatTask: Runnable? = null
+
+        button.setOnTouchListener { view, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    isRepeating = false
+                    playSound()
+
+                    val task = object : Runnable {
+                        override fun run() {
+                            isRepeating = true
+                            deleteCharacter()
+                            repeatTask = this
+                            handler.postDelayed(this, 75)
+                        }
+                    }
+
+                    repeatTask = task
+                    handler.postDelayed(task, 450)
+                    true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    repeatTask?.let { handler.removeCallbacks(it) }
+
+                    if (!isRepeating) {
+                        deleteCharacter()
+                    }
+
+                    view.performClick()
+                    true
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    repeatTask?.let { handler.removeCallbacks(it) }
+                    true
+                }
+
+                else -> true
+            }
+        }
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(0, 43.dp(), weight).apply {
+                setMargins(2.dp(), 3.dp(), 2.dp(), 3.dp())
+            }
+        )
+    }
+
+    private fun refreshKeyboard() {
+        setInputView(createKeyboard())
     }
 
     private fun typeEnglishOrKorean(label: String) {
         if (!koreanMode) {
             finishComposition()
             commit(label)
+
             if (shiftEnabled) {
                 shiftEnabled = false
-                setInputView(createKeyboard())
+                refreshKeyboard()
             }
             return
         }
@@ -338,11 +581,13 @@ class SandKeyboardService : InputMethodService() {
             keyMap[character]
         }
 
-        if (jamo != null) typeKorean(jamo)
+        if (jamo != null) {
+            typeKorean(jamo)
+        }
 
         if (shiftEnabled) {
             shiftEnabled = false
-            setInputView(createKeyboard())
+            refreshKeyboard()
         }
     }
 
@@ -370,6 +615,7 @@ class SandKeyboardService : InputMethodService() {
 
         if (jong == 0) {
             val finalIndex = finals.indexOf(key)
+
             if (finalIndex > 0) {
                 jong = finalIndex
                 updateComposition()
@@ -392,9 +638,11 @@ class SandKeyboardService : InputMethodService() {
     }
 
     private fun inputVowel(key: String) {
+        // Vowel without a previous consonant starts with ㅇ.
         if (cho == -1) {
-            finishComposition()
-            commit(key)
+            cho = initials.indexOf("ㅇ")
+            jung = vowels.indexOf(key)
+            updateComposition()
             return
         }
 
@@ -406,6 +654,7 @@ class SandKeyboardService : InputMethodService() {
 
         if (jong == 0) {
             val combined = compoundVowels[vowels[jung] + key]
+
             if (combined != null) {
                 jung = vowels.indexOf(combined)
                 updateComposition()
@@ -413,7 +662,9 @@ class SandKeyboardService : InputMethodService() {
             }
 
             finishComposition()
-            commit(key)
+            cho = initials.indexOf("ㅇ")
+            jung = vowels.indexOf(key)
+            updateComposition()
             return
         }
 
@@ -421,6 +672,7 @@ class SandKeyboardService : InputMethodService() {
         val split = splitFinals[oldFinal]
 
         val movedConsonant: String
+
         if (split != null) {
             jong = finals.indexOf(split.first)
             movedConsonant = split.second
@@ -435,11 +687,13 @@ class SandKeyboardService : InputMethodService() {
         cho = initials.indexOf(movedConsonant)
         jung = vowels.indexOf(key)
         jong = 0
+
         updateComposition()
     }
 
     private fun composeSyllable(): String {
         if (cho < 0 || jung < 0) return ""
+
         val code = 0xAC00 + (cho * 21 + jung) * 28 + jong
         return code.toChar().toString()
     }
@@ -453,9 +707,15 @@ class SandKeyboardService : InputMethodService() {
 
     private fun finishComposition() {
         if (cho >= 0 && jung >= 0) {
-            currentInputConnection?.commitText(composeSyllable(), 1)
+            currentInputConnection?.commitText(
+                composeSyllable(),
+                1
+            )
         } else if (cho >= 0) {
-            currentInputConnection?.commitText(initials[cho], 1)
+            currentInputConnection?.commitText(
+                initials[cho],
+                1
+            )
         }
 
         cho = -1
@@ -500,7 +760,10 @@ class SandKeyboardService : InputMethodService() {
                 ?.coerceToText(this)
                 ?.toString()
 
-            if (!text.isNullOrEmpty()) commit(text)
+            if (!text.isNullOrEmpty()) {
+                finishComposition()
+                commit(text)
+            }
         }
     }
 
@@ -514,8 +777,9 @@ class SandKeyboardService : InputMethodService() {
         }
     }
 
-    private fun Int.dp(): Int =
-        (this * resources.displayMetrics.density).toInt()
+    private fun Int.dp(): Int {
+        return (this * resources.displayMetrics.density).toInt()
+    }
 
     override fun onFinishInput() {
         finishComposition()
@@ -523,8 +787,11 @@ class SandKeyboardService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+
         toneGenerator?.release()
         toneGenerator = null
+
         super.onDestroy()
     }
 }
