@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -265,20 +264,23 @@ private fun MainPage(vm: NovaViewModel, settings: NovaSettings, onLongPress: () 
             }
             .padding(horizontal = 20.dp)
     ) {
-        Spacer(Modifier.height(8.dp))
-        ClockWidget(settings)
-        Spacer(Modifier.height(16.dp))
-
-        if (settings.showWeather) {
-            WeatherCard(weather) { vm.refreshWeather(force = true) }
-            Spacer(Modifier.height(14.dp))
-        }
-
+        // 상단 위키백과 검색창
         if (settings.showSearchBar) {
-            SearchPill { vm.openSearch() }
+            SearchPill {
+                vm.openSearch()
+            }
             Spacer(Modifier.height(16.dp))
         }
 
+        // 검색창 바로 아래 날씨 위젯
+        if (settings.showWeather) {
+            WeatherCard(weather) {
+                vm.refreshWeather(force = true)
+            }
+            Spacer(Modifier.height(22.dp))
+        }
+
+        // 즐겨찾기 앱 아이콘
         FavoritesGrid(vm, favorites, settings)
     }
 }
@@ -732,35 +734,47 @@ private fun SearchPill(onClick: () -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
-            .clip(CircleShape)
-            .background(Color(0x2AFFFFFF))
-            .border(1.dp, GlassStroke, CircleShape)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0x30FFFFFF))
+            .border(1.dp, Color(0x45FFFFFF), RoundedCornerShape(24.dp))
     ) {
         Pressable(
             Modifier.fillMaxWidth(),
             onClick = onClick
         ) {
             Row(
-                Modifier.padding(horizontal = 19.dp, vertical = 15.dp),
+                Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Rounded.Search,
-                    null,
-                    Modifier.size(21.dp),
-                    tint = AuroraMuted
-                )
+                // 위키백과 W 아이콘
+                Box(
+                    Modifier
+                        .size(27.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xDFFFFFFF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "W",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF333333)
+                    )
+                }
+
                 Spacer(Modifier.width(12.dp))
+
                 Text(
-                    "앱 또는 웹 검색",
+                    "위키백과 검색",
                     color = AuroraMuted,
-                    fontSize = 15.sp
+                    fontSize = 15.sp,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.weight(1f))
+
                 Icon(
                     Icons.Rounded.Mic,
                     contentDescription = "음성 검색",
-                    modifier = Modifier.size(19.dp),
+                    modifier = Modifier.size(20.dp),
                     tint = AuroraMuted
                 )
             }
