@@ -351,6 +351,42 @@ class SandKeyboardService : InputMethodService() {
     }
 
     private fun createKeyButton(
+        
+private fun createKeyButton(
+    label: String,
+    special: Boolean = false
+): Button {
+    return Button(this).apply {
+        text = label
+        textSize = if (label.length > 2) 13f else 17f
+        setTextColor(textColor)
+        typeface = Typeface.DEFAULT_BOLD
+        isAllCaps = false
+
+        backgroundTintList = null
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 3.dp().toFloat()
+            setColor(
+                if (special) {
+                    Color.rgb(119, 124, 132)
+                } else {
+                    Color.rgb(174, 178, 184)
+                }
+            )
+            setStroke(1.dp(), Color.argb(30, 255, 255, 255))
+        }
+
+        stateListAnimator = null
+        elevation = 0f
+        minWidth = 0
+        minimumWidth = 0
+        minHeight = 0
+        minimumHeight = 0
+        setPadding(0, 0, 0, 0)
+    }
+}
+
         label: String,
         special: Boolean = false
     ): Button {
