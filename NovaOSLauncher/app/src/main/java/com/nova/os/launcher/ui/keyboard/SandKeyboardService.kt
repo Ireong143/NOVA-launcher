@@ -1,4 +1,3 @@
-
 package com.nova.os.launcher.keyboard
 
 import android.content.ClipboardManager
@@ -183,7 +182,7 @@ class SandKeyboardService : InputMethodService() {
 
         listOf("ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅠ", "ㅜ", "ㅡ")
             .forEach { key ->
-                addKey(third, key, 1f) {
+                addKey(third, key, 1f, keyColor) {
                     typeKey(key)
                 }
             }
