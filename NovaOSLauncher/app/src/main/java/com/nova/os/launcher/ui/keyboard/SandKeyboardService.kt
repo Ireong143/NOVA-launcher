@@ -1,6 +1,7 @@
 
 package com.nova.os.launcher.keyboard
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
@@ -23,19 +24,20 @@ class SandKeyboardService : InputMethodService() {
     private var koreanMode = true
     private var shiftEnabled = false
     private var numberMode = false
+    private var emojiMode = false
 
     private var cho = -1
     private var jung = -1
     private var jong = 0
 
-    private var toneGenerator: ToneGenerator? = null
     private val handler = Handler(Looper.getMainLooper())
+    private var toneGenerator: ToneGenerator? = null
 
-    private val bg = Color.rgb(105, 105, 105)
-    private val keyColor = Color.rgb(174, 175, 178)
-    private val specialColor = Color.rgb(137, 139, 143)
-    private val textColor = Color.WHITE
-    private val enterColor = Color.rgb(190, 211, 245)
+    private val backgroundColor = Color.rgb(75, 77, 83)
+    private val keyColor = Color.rgb(126, 128, 136)
+    private val specialColor = Color.rgb(91, 94, 102)
+    private val keyTextColor = Color.WHITE
+    private val enterColor = Color.rgb(166, 198, 255)
 
     private val initials = listOf(
         "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ",
@@ -57,25 +59,21 @@ class SandKeyboardService : InputMethodService() {
     )
 
     private val keyMap = mapOf(
-        'q' to "ㅂ", 'w' to "ㅈ", 'e' to "ㄷ",
-        'r' to "ㄱ", 't' to "ㅅ", 'y' to "ㅛ",
-        'u' to "ㅕ", 'i' to "ㅑ", 'o' to "ㅐ",
-        'p' to "ㅔ",
-        'a' to "ㅁ", 's' to "ㄴ", 'd' to "ㅇ",
-        'f' to "ㄹ", 'g' to "ㅎ", 'h' to "ㅗ",
-        'j' to "ㅓ", 'k' to "ㅏ", 'l' to "ㅣ",
-        'z' to "ㅋ", 'x' to "ㅌ", 'c' to "ㅊ",
-        'v' to "ㅍ", 'b' to "ㅠ", 'n' to "ㅜ",
-        'm' to "ㅡ"
+        "ㅂ" to "q", "ㅈ" to "w", "ㄷ" to "e",
+        "ㄱ" to "r", "ㅅ" to "t", "ㅛ" to "y",
+        "ㅕ" to "u", "ㅑ" to "i", "ㅐ" to "o",
+        "ㅔ" to "p", "ㅁ" to "a", "ㄴ" to "s",
+        "ㅇ" to "d", "ㄹ" to "f", "ㅎ" to "g",
+        "ㅗ" to "h", "ㅓ" to "j", "ㅏ" to "k",
+        "ㅣ" to "l", "ㅋ" to "z", "ㅌ" to "x",
+        "ㅊ" to "c", "ㅍ" to "v", "ㅠ" to "b",
+        "ㅜ" to "n", "ㅡ" to "m"
     )
 
     private val shiftMap = mapOf(
-        "ㅂ" to "ㅃ",
-        "ㅈ" to "ㅉ",
-        "ㄷ" to "ㄸ",
-        "ㄱ" to "ㄲ",
-        "ㅅ" to "ㅆ",
-        "ㅐ" to "ㅒ",
+        "ㅂ" to "ㅃ", "ㅈ" to "ㅉ",
+        "ㄷ" to "ㄸ", "ㄱ" to "ㄲ",
+        "ㅅ" to "ㅆ", "ㅐ" to "ㅒ",
         "ㅔ" to "ㅖ"
     )
 
@@ -121,9 +119,16 @@ class SandKeyboardService : InputMethodService() {
         "ㅄ" to Pair("ㅂ", "ㅅ")
     )
 
+    private val emojiList = listOf(
+        "😀", "😂", "🥹", "😍", "🥰", "😎",
+        "😭", "😡", "🤔", "😊", "❤️", "💕",
+        "👍", "👏", "🙏", "🔥", "✨", "🎉",
+        "💯", "🌸", "🐱", "🐶", "🍀", "⭐"
+    )
+
     override fun onCreate() {
         super.onCreate()
-        toneGenerator = ToneGenerator(AudioManager.STREAM_SYSTEM, 35)
+        toneGenerator = ToneGenerator(AudioManager.STREAM_SYSTEM, 30)
     }
 
     override fun onCreateInputView(): View {
@@ -133,100 +138,98 @@ class SandKeyboardService : InputMethodService() {
     private fun createKeyboard(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(3.dp(), 5.dp(), 3.dp(), 3.dp())
-            setBackgroundColor(bg)
+            setPadding(5.dp(), 8.dp(), 5.dp(), 4.dp())
+            setBackgroundColor(backgroundColor)
         }
 
-        if (numberMode) {
-            createNumberRows(root)
+        if (emojiMode) {
+            createEmojiPanel(root)
+        } else if (numberMode) {
+            createNumberPanel(root)
         } else {
-            createKoreanRows(root)
+            createHangulPanel(root)
         }
 
         createBottomRow(root)
-        createFooter(root)
+        createToolbar(root)
 
         return root
     }
 
-    private fun createKoreanRows(root: LinearLayout) {
-
-        // 첫 번째 줄
-        val row1 = listOf(
+    private fun createHangulPanel(root: LinearLayout) {
+        val firstRow = listOf(
             "ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅅ",
             "ㅛ", "ㅕ", "ㅑ", "ㅐ", "ㅔ"
         )
 
-        addCharacterRow(root, row1, 54) { key ->
-            typeKoreanKey(key)
-        }
+        addKeyRow(root, firstRow, 1f) { typeKey(it) }
 
-        // 두 번째 줄
-        val row2 = listOf(
+        val secondRow = listOf(
             "ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅎ",
             "ㅗ", "ㅓ", "ㅏ", "ㅣ"
         )
 
-        addCharacterRow(root, row2, 54) { key ->
-            typeKoreanKey(key)
-        }
+        addKeyRow(root, secondRow, 1f) { typeKey(it) }
 
-        // 세 번째 줄
-        val row3 = LinearLayout(this).apply {
+        val third = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
 
-        addSpecialKey(row3, "⇧", 1.35f) {
+        addKey(third, "⇧", 1.35f, specialColor) {
             shiftEnabled = !shiftEnabled
             refreshKeyboard()
         }
 
         listOf("ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅠ", "ㅜ", "ㅡ")
             .forEach { key ->
-                addCharacterKey(row3, key, 1f) {
-                    typeKoreanKey(key)
+                addKey(third, key, 1f) {
+                    typeKey(key)
                 }
             }
 
-        addDeleteKey(row3, 1.35f)
+        addDeleteKey(third, 1.35f)
 
         root.addView(
-            row3,
+            third,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                54.dp()
+                59.dp()
             )
         )
     }
 
-    private fun createNumberRows(root: LinearLayout) {
-
+    private fun createNumberPanel(root: LinearLayout) {
         val rows = listOf(
             listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
             listOf("@", "#", "$", "%", "&", "-", "+", "(", ")", "/"),
-            listOf("=", "*", "\"", "'", ":", ";", "!", "?", "⌫")
+            listOf("=", "*", "\"", "'", ":", ";", "!", "?", "~")
         )
 
-        rows.forEachIndexed { index, keys ->
-            val row = LinearLayout(this).apply {
+        rows.forEach { row ->
+            addKeyRow(root, row, 1f) {
+                finishComposition()
+                commit(it)
+            }
+        }
+    }
+
+    private fun createEmojiPanel(root: LinearLayout) {
+        emojiList.chunked(8).forEach { row ->
+            val line = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
 
-            keys.forEach { key ->
-                if (key == "⌫") {
-                    addDeleteKey(row, 1.2f)
-                } else {
-                    addCharacterKey(row, key, 1f) {
-                        finishComposition()
-                        commit(key)
-                    }
+            row.forEach { emoji ->
+                addKey(line, emoji, 1f, specialColor) {
+                    finishComposition()
+                    commit(emoji)
                 }
             }
 
             root.addView(
-                row,
+                line,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     54.dp()
@@ -235,10 +238,10 @@ class SandKeyboardService : InputMethodService() {
         }
     }
 
-    private fun addCharacterRow(
+    private fun addKeyRow(
         parent: LinearLayout,
         keys: List<String>,
-        height: Int,
+        weight: Float,
         action: (String) -> Unit
     ) {
         val row = LinearLayout(this).apply {
@@ -247,7 +250,7 @@ class SandKeyboardService : InputMethodService() {
         }
 
         keys.forEach { key ->
-            addCharacterKey(row, key, 1f) {
+            addKey(row, key, weight, keyColor) {
                 action(key)
             }
         }
@@ -256,9 +259,170 @@ class SandKeyboardService : InputMethodService() {
             row,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                height.dp()
+                59.dp()
             )
         )
+    }
+
+    private fun addKey(
+        parent: LinearLayout,
+        label: String,
+        weight: Float,
+        color: Int,
+        action: () -> Unit
+    ) {
+        val shownLabel = when {
+            !koreanMode && keyMap.containsKey(label) ->
+                englishLabel(label)
+            koreanMode && shiftEnabled ->
+                shiftMap[label] ?: label
+            else -> label
+        }
+
+        val button = makeKey(shownLabel, color)
+
+        button.setOnClickListener {
+            playSound()
+            action()
+        }
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(0, 51.dp(), weight).apply {
+                setMargins(3.dp(), 3.dp(), 3.dp(), 3.dp())
+            }
+        )
+    }
+
+    private fun makeKey(
+        label: String,
+        color: Int = keyColor
+    ): Button {
+        return Button(this).apply {
+            text = label
+            textSize = when {
+                label.length > 2 -> 14f
+                label.length == 2 -> 17f
+                else -> 21f
+            }
+            setTextColor(
+                if (color == enterColor) {
+                    Color.rgb(255, 255, 255)
+                } else {
+                    keyTextColor
+                }
+            )
+            typeface = Typeface.DEFAULT
+            isAllCaps = false
+
+            backgroundTintList = null
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 13.dp().toFloat()
+                setColor(color)
+                setStroke(
+                    1.dp(),
+                    Color.argb(75, 255, 255, 255)
+                )
+            }
+
+            elevation = 2.dp().toFloat()
+            stateListAnimator = null
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(0, 0, 0, 0)
+        }
+    }
+
+    private fun addDeleteKey(
+        parent: LinearLayout,
+        weight: Float
+    ) {
+        val button = makeKey("⌫", specialColor)
+        addRepeatTouch(button, true)
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(0, 51.dp(), weight).apply {
+                setMargins(3.dp(), 3.dp(), 3.dp(), 3.dp())
+            }
+        )
+    }
+
+    private fun addSpaceKey(
+        parent: LinearLayout,
+        weight: Float
+    ) {
+        val button = makeKey("간격", specialColor)
+        button.textSize = 19f
+
+        addRepeatTouch(button, false)
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(0, 55.dp(), weight).apply {
+                setMargins(3.dp(), 3.dp(), 3.dp(), 3.dp())
+            }
+        )
+    }
+
+    private fun addRepeatTouch(
+        button: Button,
+        deleteKey: Boolean
+    ) {
+        var repeating = false
+        var repeatTask: Runnable? = null
+
+        button.setOnTouchListener { view, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    repeating = false
+                    playSound()
+
+                    val task = object : Runnable {
+                        override fun run() {
+                            repeating = true
+                            deleteCharacter()
+                            repeatTask = this
+                            handler.postDelayed(this, 75)
+                        }
+                    }
+
+                    repeatTask = task
+                    handler.postDelayed(task, 450)
+                    true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    repeatTask?.let {
+                        handler.removeCallbacks(it)
+                    }
+
+                    if (!repeating) {
+                        if (deleteKey) {
+                            deleteCharacter()
+                        } else {
+                            finishComposition()
+                            commit(" ")
+                        }
+                    }
+
+                    view.performClick()
+                    true
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    repeatTask?.let {
+                        handler.removeCallbacks(it)
+                    }
+                    true
+                }
+
+                else -> true
+            }
+        }
     }
 
     private fun createBottomRow(root: LinearLayout) {
@@ -267,21 +431,27 @@ class SandKeyboardService : InputMethodService() {
             gravity = Gravity.CENTER
         }
 
-        addSpecialKey(row, "123", 1.05f) {
+        addBottomButton(row, "123", 1.05f) {
             finishComposition()
             numberMode = !numberMode
-            shiftEnabled = false
+            emojiMode = false
             refreshKeyboard()
         }
 
-        addSpecialKey(row, "☻", 0.95f) {
+        addBottomButton(row, "☻", 0.95f) {
             finishComposition()
-            commit("😊")
+            emojiMode = !emojiMode
+            numberMode = false
+            refreshKeyboard()
         }
 
         addSpaceKey(row, 3.8f)
 
-        addSpecialKey(row, "↵", 1.3f, enterColor) {
+        addBottomButton(row, "▢", 0.95f) {
+            pasteClipboard()
+        }
+
+        addBottomButton(row, "↵", 1.25f, enterColor) {
             finishComposition()
 
             val action = currentInputEditorInfo?.imeOptions
@@ -301,21 +471,43 @@ class SandKeyboardService : InputMethodService() {
             row,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                59.dp()
+                67.dp()
             )
         )
     }
 
-    private fun createFooter(root: LinearLayout) {
-        val row = LinearLayout(this).apply {
+    private fun addBottomButton(
+        parent: LinearLayout,
+        label: String,
+        weight: Float,
+        color: Int = specialColor,
+        action: () -> Unit
+    ) {
+        val button = makeKey(label, color)
+
+        button.setOnClickListener {
+            playSound()
+            action()
+        }
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(0, 55.dp(), weight).apply {
+                setMargins(3.dp(), 3.dp(), 3.dp(), 3.dp())
+            }
+        )
+    }
+
+    private fun createToolbar(root: LinearLayout) {
+        val toolbar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(15.dp(), 0, 15.dp(), 0)
+            setPadding(7.dp(), 4.dp(), 7.dp(), 0)
         }
 
         val globe = Button(this).apply {
             text = "◎"
-            textSize = 28f
+            textSize = 30f
             setTextColor(Color.WHITE)
             background = null
             backgroundTintList = null
@@ -323,7 +515,6 @@ class SandKeyboardService : InputMethodService() {
             minimumWidth = 0
             minHeight = 0
             minimumHeight = 0
-            setPadding(0, 0, 0, 0)
             stateListAnimator = null
         }
 
@@ -331,166 +522,112 @@ class SandKeyboardService : InputMethodService() {
             finishComposition()
             koreanMode = !koreanMode
             shiftEnabled = false
+            numberMode = false
+            emojiMode = false
             refreshKeyboard()
         }
 
-        row.addView(
+        toolbar.addView(
             globe,
-            LinearLayout.LayoutParams(0, 39.dp(), 1f)
+            LinearLayout.LayoutParams(0, 49.dp(), 0.8f)
         )
 
-        val mic = Button(this).apply {
-            text = "♩"
-            textSize = 27f
-            setTextColor(Color.WHITE)
-            background = null
-            backgroundTintList = null
-            minWidth = 0
-            minimumWidth = 0
-            minHeight = 0
-            minimumHeight = 0
-            setPadding(0, 0, 0, 0)
-            stateListAnimator = null
-        }
-
-        mic.setOnClickListener {
-            Toast.makeText(
-                this@SandKeyboardService,
-                "음성 입력은 아직 지원하지 않아요.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        row.addView(
-            mic,
-            LinearLayout.LayoutParams(0, 39.dp(), 1f)
-        )
-
-        root.addView(
-            row,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                42.dp()
-            )
-        )
-    }
-
-    private fun addCharacterKey(
-        parent: LinearLayout,
-        key: String,
-        weight: Float,
-        action: () -> Unit
-    ) {
-        val label = if (koreanMode && shiftEnabled) {
-            shiftMap[key] ?: key
-        } else if (!koreanMode) {
-            englishLabel(key)
-        } else {
-            key
-        }
-
-        val button = createKey(label)
-
-        button.setOnClickListener {
-            playSound()
-            action()
-        }
-
-        parent.addView(
-            button,
-            LinearLayout.LayoutParams(0, 47.dp(), weight).apply {
-                setMargins(2.dp(), 3.dp(), 2.dp(), 3.dp())
-            }
-        )
-    }
-
-    private fun addSpecialKey(
-        parent: LinearLayout,
-        label: String,
-        weight: Float,
-        color: Int = specialColor,
-        action: () -> Unit
-    ) {
-        val button = createKey(label, color)
-
-        button.setOnClickListener {
-            playSound()
-            action()
-        }
-
-        parent.addView(
-            button,
-            LinearLayout.LayoutParams(0, 47.dp(), weight).apply {
-                setMargins(2.dp(), 3.dp(), 2.dp(), 3.dp())
-            }
-        )
-    }
-
-    private fun createKey(
-        label: String,
-        color: Int = keyColor
-    ): Button {
-        return Button(this).apply {
-            text = label
-            textSize = if (label.length > 2) 14f else 19f
-            setTextColor(
-                if (color == enterColor) {
-                    Color.WHITE
-                } else {
-                    textColor
-                }
-            )
-            typeface = Typeface.DEFAULT
-            isAllCaps = false
-
-            backgroundTintList = null
+        val emojiBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 7.dp().toFloat()
-                setColor(color)
-                setStroke(
-                    1.dp(),
-                    Color.argb(35, 255, 255, 255)
+                cornerRadius = 35.dp().toFloat()
+                setColor(Color.rgb(94, 96, 103))
+            }
+        }
+
+        listOf("😀", "😂", "❤️", "👍", "😭", "🔥", "•••")
+            .forEach { emoji ->
+                val button = Button(this).apply {
+                    text = emoji
+                    textSize = if (emoji == "•••") 17f else 22f
+                    background = null
+                    backgroundTintList = null
+                    minWidth = 0
+                    minimumWidth = 0
+                    minHeight = 0
+                    minimumHeight = 0
+                    setPadding(2.dp(), 0, 2.dp(), 0)
+                    stateListAnimator = null
+                }
+
+                button.setOnClickListener {
+                    if (emoji == "•••") {
+                        emojiMode = true
+                        numberMode = false
+                        refreshKeyboard()
+                    } else {
+                        finishComposition()
+                        commit(emoji)
+                    }
+                }
+
+                emojiBar.addView(
+                    button,
+                    LinearLayout.LayoutParams(0, 43.dp(), 1f)
                 )
             }
 
-            elevation = 1.dp().toFloat()
-            stateListAnimator = null
+        toolbar.addView(
+            emojiBar,
+            LinearLayout.LayoutParams(0, 45.dp(), 3.4f).apply {
+                setMargins(5.dp(), 0, 5.dp(), 0)
+            }
+        )
+
+        val language = Button(this).apply {
+            text = if (koreanMode) "한/영  ⌄" else "EN/한  ⌄"
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            backgroundTintList = null
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 30.dp().toFloat()
+                setColor(specialColor)
+                setStroke(1.dp(), Color.argb(60, 255, 255, 255))
+            }
             minWidth = 0
             minimumWidth = 0
             minHeight = 0
             minimumHeight = 0
-            setPadding(0, 0, 0, 0)
+            stateListAnimator = null
         }
-    }
 
-    private fun englishLabel(key: String): String {
-        val english = mapOf(
-            "ㅂ" to "q", "ㅈ" to "w", "ㄷ" to "e",
-            "ㄱ" to "r", "ㅅ" to "t", "ㅛ" to "y",
-            "ㅕ" to "u", "ㅑ" to "i", "ㅐ" to "o",
-            "ㅔ" to "p", "ㅁ" to "a", "ㄴ" to "s",
-            "ㅇ" to "d", "ㄹ" to "f", "ㅎ" to "g",
-            "ㅗ" to "h", "ㅓ" to "j", "ㅏ" to "k",
-            "ㅣ" to "l", "ㅋ" to "z", "ㅌ" to "x",
-            "ㅊ" to "c", "ㅍ" to "v", "ㅠ" to "b",
-            "ㅜ" to "n", "ㅡ" to "m"
+        language.setOnClickListener {
+            finishComposition()
+            koreanMode = !koreanMode
+            shiftEnabled = false
+            numberMode = false
+            emojiMode = false
+            refreshKeyboard()
+        }
+
+        toolbar.addView(
+            language,
+            LinearLayout.LayoutParams(0, 45.dp(), 1.8f)
         )
 
-        val value = english[key] ?: key
-
-        return if (shiftEnabled) {
-            value.uppercase()
-        } else {
-            value
-        }
+        root.addView(
+            toolbar,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                55.dp()
+            )
+        )
     }
 
-    private fun typeKoreanKey(original: String) {
+    private fun typeKey(key: String) {
         if (!koreanMode) {
-            val value = englishLabel(original)
+            val english = englishLabel(key)
             finishComposition()
-            commit(value)
+            commit(english)
+
             if (shiftEnabled) {
                 shiftEnabled = false
                 refreshKeyboard()
@@ -498,20 +635,23 @@ class SandKeyboardService : InputMethodService() {
             return
         }
 
-        val key = if (shiftEnabled) {
-            shiftMap[original] ?: original
+        val actualKey = if (shiftEnabled) {
+            shiftMap[key] ?: key
         } else {
-            original
+            key
         }
 
-        if (key in vowels || key in initials) {
-            typeKorean(key)
-        }
+        typeKorean(actualKey)
 
         if (shiftEnabled) {
             shiftEnabled = false
             refreshKeyboard()
         }
+    }
+
+    private fun englishLabel(key: String): String {
+        val value = keyMap[key] ?: key
+        return if (shiftEnabled) value.uppercase() else value
     }
 
     private fun typeKorean(key: String) {
@@ -600,8 +740,7 @@ class SandKeyboardService : InputMethodService() {
             moved = oldFinal
         }
 
-        val previous = composeSyllable()
-        currentInputConnection?.commitText(previous, 1)
+        currentInputConnection?.commitText(composeSyllable(), 1)
 
         cho = initials.indexOf(moved)
         jung = vowels.indexOf(key)
@@ -664,135 +803,43 @@ class SandKeyboardService : InputMethodService() {
         }
     }
 
-    private fun addDeleteKey(
-        parent: LinearLayout,
-        weight: Float
-    ) {
-        val button = createKey("⌫", specialColor)
+    private fun pasteClipboard() {
+        val clipboard = getSystemService(
+            Context.CLIPBOARD_SERVICE
+        ) as ClipboardManager
 
-        var repeating = false
-        var task: Runnable? = null
+        if (clipboard.hasPrimaryClip()) {
+            val text = clipboard.primaryClip
+                ?.getItemAt(0)
+                ?.coerceToText(this)
+                ?.toString()
 
-        button.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    repeating = false
-                    playSound()
-
-                    val repeat = object : Runnable {
-                        override fun run() {
-                            repeating = true
-                            deleteCharacter()
-                            task = this
-                            handler.postDelayed(this, 80)
-                        }
-                    }
-
-                    task = repeat
-                    handler.postDelayed(repeat, 450)
-                    true
-                }
-
-                MotionEvent.ACTION_UP -> {
-                    task?.let { handler.removeCallbacks(it) }
-
-                    if (!repeating) {
-                        deleteCharacter()
-                    }
-
-                    view.performClick()
-                    true
-                }
-
-                MotionEvent.ACTION_CANCEL -> {
-                    task?.let { handler.removeCallbacks(it) }
-                    true
-                }
-
-                else -> true
+            if (!text.isNullOrEmpty()) {
+                finishComposition()
+                commit(text)
             }
+        } else {
+            Toast.makeText(
+                this,
+                "클립보드가 비어 있어요.",
+                Toast.LENGTH_SHORT
+            ).show()
         }
-
-        parent.addView(
-            button,
-            LinearLayout.LayoutParams(0, 47.dp(), weight).apply {
-                setMargins(2.dp(), 3.dp(), 2.dp(), 3.dp())
-            }
-        )
-    }
-
-    private fun addSpaceKey(
-        parent: LinearLayout,
-        weight: Float
-    ) {
-        val button = createKey("간격", specialColor)
-        button.textSize = 17f
-
-        var repeating = false
-        var task: Runnable? = null
-
-        button.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    repeating = false
-                    playSound()
-
-                    val repeat = object : Runnable {
-                        override fun run() {
-                            repeating = true
-                            deleteCharacter()
-                            task = this
-                            handler.postDelayed(this, 80)
-                        }
-                    }
-
-                    task = repeat
-                    handler.postDelayed(repeat, 450)
-                    true
-                }
-
-                MotionEvent.ACTION_UP -> {
-                    task?.let { handler.removeCallbacks(it) }
-
-                    if (!repeating) {
-                        finishComposition()
-                        commit(" ")
-                    }
-
-                    view.performClick()
-                    true
-                }
-
-                MotionEvent.ACTION_CANCEL -> {
-                    task?.let { handler.removeCallbacks(it) }
-                    true
-                }
-
-                else -> true
-            }
-        }
-
-        parent.addView(
-            button,
-            LinearLayout.LayoutParams(0, 47.dp(), weight).apply {
-                setMargins(3.dp(), 3.dp(), 3.dp(), 3.dp())
-            }
-        )
-    }
-
-    private fun refreshKeyboard() {
-        setInputView(createKeyboard())
     }
 
     private fun commit(value: String) {
         currentInputConnection?.commitText(value, 1)
     }
 
+    private fun refreshKeyboard() {
+        setInputView(createKeyboard())
+    }
+
     private fun playSound() {
         try {
             toneGenerator?.startTone(
                 ToneGenerator.TONE_PROP_BEEP,
-                35
+                30
             )
         } catch (_: Exception) {
         }
