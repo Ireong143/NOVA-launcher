@@ -3,7 +3,6 @@ package com.nova.os.launcher.keyboard
 
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -32,10 +31,9 @@ class SandKeyboardService : InputMethodService() {
 
     private val handler = Handler(Looper.getMainLooper())
 
-    // SAND Keyboard colors
     private val backgroundColor = Color.rgb(91, 94, 100)
-    private val keyColor = Color.rgb(153, 157, 164)
-    private val specialKeyColor = Color.rgb(116, 121, 130)
+    private val keyColor = Color.rgb(174, 178, 184)
+    private val specialKeyColor = Color.rgb(119, 124, 132)
     private val textColor = Color.WHITE
     private val accentColor = Color.rgb(111, 190, 205)
 
@@ -143,7 +141,6 @@ class SandKeyboardService : InputMethodService() {
             setBackgroundColor(backgroundColor)
         }
 
-        // Number / symbol row
         val topKeys = if (symbolMode) {
             symbolKeys
         } else {
@@ -155,21 +152,16 @@ class SandKeyboardService : InputMethodService() {
             commit(key)
         }
 
-        // QWERTY first row
         val row1 = "qwertyuiop".map { displayKey(it) }
-
         addRow(root, row1, 47) { label ->
             typeEnglishOrKorean(label)
         }
 
-        // QWERTY second row
         val row2 = "asdfghjkl".map { displayKey(it) }
-
         addRow(root, row2, 47) { label ->
             typeEnglishOrKorean(label)
         }
 
-        // Third row
         val row3 = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -186,7 +178,6 @@ class SandKeyboardService : InputMethodService() {
 
         "zxcvbnm".forEach { character ->
             val label = displayKey(character)
-
             addKey(row3, label, 1f) {
                 typeEnglishOrKorean(label)
             }
@@ -202,7 +193,6 @@ class SandKeyboardService : InputMethodService() {
             )
         )
 
-        // Bottom row
         val bottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -216,7 +206,7 @@ class SandKeyboardService : InputMethodService() {
         addSpecialButton(
             bottom,
             if (koreanMode) "한/영" else "EN/한",
-            1.0f
+            1f
         ) {
             finishComposition()
             koreanMode = !koreanMode
@@ -256,7 +246,6 @@ class SandKeyboardService : InputMethodService() {
             )
         )
 
-        // Language / symbol controls
         val footer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -315,7 +304,6 @@ class SandKeyboardService : InputMethodService() {
 
         keys.forEach { key ->
             addKey(row, key, 1f) {
-                playSound()
                 action(key)
             }
         }
@@ -350,43 +338,8 @@ class SandKeyboardService : InputMethodService() {
         )
     }
 
+    // Angular rectangular key design
     private fun createKeyButton(
-        
-private fun createKeyButton(
-    label: String,
-    special: Boolean = false
-): Button {
-    return Button(this).apply {
-        text = label
-        textSize = if (label.length > 2) 13f else 17f
-        setTextColor(textColor)
-        typeface = Typeface.DEFAULT_BOLD
-        isAllCaps = false
-
-        backgroundTintList = null
-        background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = 3.dp().toFloat()
-            setColor(
-                if (special) {
-                    Color.rgb(119, 124, 132)
-                } else {
-                    Color.rgb(174, 178, 184)
-                }
-            )
-            setStroke(1.dp(), Color.argb(30, 255, 255, 255))
-        }
-
-        stateListAnimator = null
-        elevation = 0f
-        minWidth = 0
-        minimumWidth = 0
-        minHeight = 0
-        minimumHeight = 0
-        setPadding(0, 0, 0, 0)
-    }
-}
-
         label: String,
         special: Boolean = false
     ): Button {
@@ -400,18 +353,22 @@ private fun createKeyButton(
             backgroundTintList = null
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 9.dp().toFloat()
+                cornerRadius = 3.dp().toFloat()
                 setColor(
-                    if (special) specialKeyColor else keyColor
+                    if (special) {
+                        specialKeyColor
+                    } else {
+                        keyColor
+                    }
                 )
                 setStroke(
                     1.dp(),
-                    Color.argb(35, 255, 255, 255)
+                    Color.argb(30, 255, 255, 255)
                 )
             }
 
             stateListAnimator = null
-            elevation = 1.dp().toFloat()
+            elevation = 0f
             minWidth = 0
             minimumWidth = 0
             minHeight = 0
@@ -453,7 +410,11 @@ private fun createKeyButton(
             setTextColor(accentColor)
             typeface = Typeface.DEFAULT_BOLD
             isAllCaps = false
-            backgroundTintList = ColorStateList.valueOf(backgroundColor)
+            backgroundTintList = null
+            background = GradientDrawable().apply {
+                setColor(backgroundColor)
+                cornerRadius = 0f
+            }
             minWidth = 0
             minimumWidth = 0
             minHeight = 0
@@ -462,7 +423,9 @@ private fun createKeyButton(
             stateListAnimator = null
         }
 
-        button.setOnClickListener(action)
+        button.setOnClickListener {
+            action()
+        }
 
         parent.addView(
             button,
@@ -470,13 +433,11 @@ private fun createKeyButton(
         )
     }
 
-    // Space: tap = space, long press = continuous deletion
     private fun addSpaceButton(
         parent: LinearLayout,
         weight: Float
     ) {
         val button = createKeyButton("간격", true)
-
         button.textSize = 15f
 
         var isRepeating = false
@@ -503,7 +464,9 @@ private fun createKeyButton(
                 }
 
                 MotionEvent.ACTION_UP -> {
-                    repeatTask?.let { handler.removeCallbacks(it) }
+                    repeatTask?.let {
+                        handler.removeCallbacks(it)
+                    }
 
                     if (!isRepeating) {
                         finishComposition()
@@ -515,7 +478,9 @@ private fun createKeyButton(
                 }
 
                 MotionEvent.ACTION_CANCEL -> {
-                    repeatTask?.let { handler.removeCallbacks(it) }
+                    repeatTask?.let {
+                        handler.removeCallbacks(it)
+                    }
                     true
                 }
 
@@ -531,7 +496,6 @@ private fun createKeyButton(
         )
     }
 
-    // Backspace: tap = one deletion, long press = continuous deletion
     private fun addRepeatDeleteButton(
         parent: LinearLayout,
         label: String,
@@ -563,7 +527,9 @@ private fun createKeyButton(
                 }
 
                 MotionEvent.ACTION_UP -> {
-                    repeatTask?.let { handler.removeCallbacks(it) }
+                    repeatTask?.let {
+                        handler.removeCallbacks(it)
+                    }
 
                     if (!isRepeating) {
                         deleteCharacter()
@@ -574,7 +540,9 @@ private fun createKeyButton(
                 }
 
                 MotionEvent.ACTION_CANCEL -> {
-                    repeatTask?.let { handler.removeCallbacks(it) }
+                    repeatTask?.let {
+                        handler.removeCallbacks(it)
+                    }
                     true
                 }
 
@@ -674,7 +642,6 @@ private fun createKeyButton(
     }
 
     private fun inputVowel(key: String) {
-        // Vowel without a previous consonant starts with ㅇ.
         if (cho == -1) {
             cho = initials.indexOf("ㅇ")
             jung = vowels.indexOf(key)
@@ -824,10 +791,8 @@ private fun createKeyButton(
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
-
         toneGenerator?.release()
         toneGenerator = null
-
         super.onDestroy()
     }
 }
