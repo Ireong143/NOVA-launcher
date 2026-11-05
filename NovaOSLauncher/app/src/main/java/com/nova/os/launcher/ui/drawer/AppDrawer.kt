@@ -1,6 +1,7 @@
 package com.nova.os.launcher.ui.drawer
-
+ 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -69,7 +72,7 @@ import com.nova.os.launcher.ui.components.Pressable
 import com.nova.os.launcher.ui.components.blockTouches
 import com.nova.os.launcher.ui.theme.LocalNovaColors
 import kotlinx.coroutines.delay
-
+ 
 @Composable
 fun AppDrawer(vm: NovaViewModel) {
     val c = LocalNovaColors.current
@@ -80,11 +83,11 @@ fun AppDrawer(vm: NovaViewModel) {
     val focusRequester = remember { FocusRequester() }
     var query by remember { mutableStateOf("") }
     var sortMenu by remember { mutableStateOf(false) }
-
+ 
     val filtered = remember(apps, query) {
         if (query.isBlank()) apps else apps.filter { SearchUtil.matches(it, query) }
     }
-
+ 
     LaunchedEffect(Unit) {
         if (vm.drawerAutoFocus) {
             delay(350)
@@ -95,13 +98,28 @@ fun AppDrawer(vm: NovaViewModel) {
             }
         }
     }
-
+ 
+    // 홈 화면과 같은 유리 질감의 둥근 시트 (위쪽 모서리가 둥근 반투명 패널)
+    val sheetShape = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+ 
     Column(
         Modifier
             .fillMaxSize()
-            .background(c.sheet.copy(alpha = 0.72f))
             .blockTouches()
             .statusBarsPadding()
+            .padding(top = 6.dp)
+            .clip(sheetShape)
+            .background(
+                Brush.verticalGradient(
+                    listOf(c.sheet.copy(alpha = 0.70f), c.sheet.copy(alpha = 0.88f))
+                )
+            )
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(c.glassBorder, Color.Transparent)),
+                sheetShape
+            )
+            .blockTouches()
     ) {
         // Drag handle: swipe down to close.
         Box(
@@ -122,7 +140,7 @@ fun AppDrawer(vm: NovaViewModel) {
         ) {
             Box(Modifier.width(40.dp).height(4.dp).clip(CircleShape).background(c.text.copy(alpha = 0.35f)))
         }
-
+ 
         // Search + sort
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
@@ -191,18 +209,18 @@ fun AppDrawer(vm: NovaViewModel) {
                 }
             }
         }
-
+ 
         Text(
             "앱 ${filtered.size}개 · ${settings.sort.label}",
             Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
             fontSize = 12.sp,
             color = c.textSecondary,
         )
-
+ 
         LazyVerticalGrid(
             columns = GridCells.Fixed(settings.drawerColumns.coerceIn(3, 6)),
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.weight(1f).fillMaxWidth().navigationBarsPadding(),
         ) {
             items(filtered, key = { it.key }) { app ->
@@ -243,3 +261,4 @@ fun AppDrawer(vm: NovaViewModel) {
         }
     }
 }
+ 
