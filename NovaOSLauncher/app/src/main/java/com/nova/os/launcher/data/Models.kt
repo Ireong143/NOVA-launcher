@@ -1,17 +1,17 @@
-
+ 
 package com.nova.os.launcher.data
-
+ 
 import android.content.ComponentName
 import android.os.UserHandle
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
-
+ 
 /** Full-screen layers that can be shown above the home screen. */
 enum class Overlay {
     None, Drawer, Control, Settings,
     Calculator, Notes, Clock, Apps, About, Search
 }
-
+ 
 @Immutable
 data class AppInfo(
     val key: String,
@@ -24,7 +24,7 @@ data class AppInfo(
     val versionName: String,
     val installTime: Long,
 )
-
+ 
 enum class ThemeMode(val label: String) { SYSTEM("시스템"), LIGHT("라이트"), DARK("다크") }
 enum class ClockStyle(val label: String) { LARGE("큰 시계"), COMPACT("컴팩트") }
 enum class SortMode(val label: String) {
@@ -33,14 +33,14 @@ enum class SortMode(val label: String) {
     RECENT("최근 설치순"),
     FREQUENT("자주 사용순"),
 }
-
+ 
 @Immutable
 data class NovaSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accentIndex: Int = 0,
-    val wallpaperId: String = "aurora",
+    val wallpaperId: String = "wave_system",
     val animatedWallpaper: Boolean = true,
-    val iconSizeDp: Int = 58,
+    val iconSizeDp: Int = 64,
     val showLabels: Boolean = true,
     val fontScale: Float = 1f,
     val animationsEnabled: Boolean = true,
@@ -60,7 +60,7 @@ data class NovaSettings(
     val hidden: Set<String> = emptySet(),
     val setupDone: Boolean = false,
 )
-
+ 
 @Immutable
 data class Note(
     val id: Long,
@@ -73,9 +73,9 @@ data class Note(
     val preview: String
         get() = text.lineSequence().filter { it.isNotBlank() }.drop(1).joinToString(" ").trim()
 }
-
+ 
 enum class WeatherStatus { LOADING, READY, ERROR }
-
+ 
 @Immutable
 data class WeatherState(
     val status: WeatherStatus = WeatherStatus.LOADING,
@@ -99,7 +99,7 @@ data class WeatherState(
             in 95..99 -> "⛈️"
             else -> "🌡️"
         }
-
+ 
     val description: String
         get() = when (code) {
             0 -> "맑음"
@@ -116,7 +116,7 @@ data class WeatherState(
             else -> "날씨"
         }
 }
-
+ 
 @Immutable
 data class BatteryState(
     val percent: Int = 0,
@@ -126,3 +126,4 @@ data class BatteryState(
     val health: String = "",
     val valid: Boolean = false,
 )
+ 
