@@ -26,7 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -145,6 +147,7 @@ fun HomeScreen(vm: NovaViewModel) {
             // 검색창은 기존처럼 첫 페이지 + 설정(showSearchBar)이 켜져 있을 때만 표시.
             HomeTopBar(
                 battery = battery,
+                use24h = settings.use24h,
                 showSearch = settings.showSearchBar && pagerState.currentPage == 0,
                 onSearch = { vm.openSearch() },
                 onBattery = { vm.open(Overlay.Control) }
@@ -197,27 +200,41 @@ fun HomeScreen(vm: NovaViewModel) {
 @Composable
 private fun HomeTopBar(
     battery: BatteryState,
+    use24h: Boolean,
     showSearch: Boolean,
     onSearch: () -> Unit,
     onBattery: () -> Unit
 ) {
+    val now by rememberMinuteClock()
+    val timeText = remember(now, use24h) {
+        now.format(DateTimeFormatter.ofPattern(if (use24h) "H:mm" else "h:mm", Locale.getDefault()))
+    }
+    // 시안: 둥근 유리 패널 하나 안에 시간 + 배터리, 그 아래 검색창.
+    // 검색창은 기존처럼 첫 페이지 + 설정(showSearchBar)이 켜져 있을 때만 표시.
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp)
             .animateContentSize()
-            .homeGlass(RoundedCornerShape(36.dp))
-            .padding(start = 18.dp, end = 14.dp, top = 12.dp, bottom = 14.dp)
+            .homeGlass(RoundedCornerShape(50.dp))
+            .padding(
+                start = 17.dp,
+                end = 17.dp,
+                top = 24.dp,
+                bottom = if (showSearch) 25.dp else 18.dp
+            )
     ) {
         Row(
-            Modifier.fillMaxWidth(),
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 13.dp, end = 6.dp)
+                .height(28.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "S A N D   O S",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.8.sp,
+                timeText,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = AuroraWhite
             )
  
@@ -227,32 +244,51 @@ private fun HomeTopBar(
                 Modifier.clip(CircleShape),
                 onClick = onBattery
             ) {
-                Row(
-                    Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        if (battery.charging) Icons.Rounded.BatteryChargingFull
-                        else Icons.Rounded.BatteryFull,
-                        contentDescription = "배터리",
-                        modifier = Modifier.size(20.dp),
-                        tint = if (battery.charging) Color(0xFF8DE8C6) else AuroraWhite
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        if (battery.valid) "${battery.percent}%" else "--",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AuroraWhite
+                Box(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                    HomeBattery(
+                        percent = battery.percent,
+                        charging = battery.charging,
+                        valid = battery.valid,
+                        tint = AuroraWhite
                     )
                 }
             }
         }
  
         if (showSearch) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(30.dp))
             SearchPill(onSearch)
         }
+    }
+}
+ 
+/** 시안의 가로형 배터리 아이콘. 잔량만큼 채워지고 충전 중이면 초록색. */
+@Composable
+private fun HomeBattery(percent: Int, charging: Boolean, valid: Boolean, tint: Color) {
+    val fillColor = if (charging) Color(0xFF4ADE80) else tint
+    Canvas(Modifier.size(width = 30.dp, height = 14.dp)) {
+        val nub = 3.dp.toPx()
+        val bw = size.width - nub
+        val bh = size.height
+        drawRoundRect(
+            color = tint.copy(alpha = 0.38f),
+            size = Size(bw, bh),
+            cornerRadius = CornerRadius(4.dp.toPx())
+        )
+        val inset = 1.5.dp.toPx()
+        val frac = if (valid) (percent.coerceIn(0, 100) / 100f).coerceAtLeast(0.08f) else 1f
+        drawRoundRect(
+            color = fillColor,
+            topLeft = Offset(inset, inset),
+            size = Size((bw - inset * 2f) * frac, bh - inset * 2f),
+            cornerRadius = CornerRadius(2.5.dp.toPx())
+        )
+        drawRoundRect(
+            color = tint.copy(alpha = 0.5f),
+            topLeft = Offset(bw + 1.dp.toPx(), bh * 0.32f),
+            size = Size(2.dp.toPx(), bh * 0.36f),
+            cornerRadius = CornerRadius(1.dp.toPx())
+        )
     }
 }
  
@@ -267,13 +303,14 @@ private fun MainPage(vm: NovaViewModel, settings: NovaSettings, onLongPress: () 
             .pointerInput(Unit) {
                 detectTapGestures(onLongPress = { onLongPress() })
             }
-            .padding(horizontal = 16.dp)
     ) {
         if (settings.showWeather) {
-            WeatherCard(weather) { vm.refreshWeather(force = true) }
-            Spacer(Modifier.height(26.dp))
+            // 시안: 날씨 카드는 상단 패널보다 12dp 안쪽, 패널과 거의 붙어 있음
+            Spacer(Modifier.height(4.dp))
+            WeatherCard(weather, Modifier.padding(horizontal = 28.dp)) { vm.refreshWeather(force = true) }
+            Spacer(Modifier.height(43.dp))
         } else {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
         }
  
         FavoritesGrid(vm, favorites, settings)
@@ -286,7 +323,7 @@ private fun FavoritesGrid(vm: NovaViewModel, apps: List<AppInfo>, settings: Nova
     val cols = settings.favColumns.coerceIn(3, 5)
  
     if (apps.isEmpty()) {
-        GlassCard(Modifier.fillMaxWidth()) {
+        GlassCard(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
             Text(
                 "앱 서랍에서 앱을 길게 눌러\n즐겨찾기에 추가해 보세요",
                 Modifier.padding(20.dp).fillMaxWidth(),
@@ -298,13 +335,15 @@ private fun FavoritesGrid(vm: NovaViewModel, apps: List<AppInfo>, settings: Nova
         return
     }
  
-    // 스크린샷처럼 첫 홈 화면에는 두 줄의 즐겨찾기 앱을 배치
-    Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
-        apps.take(cols * 2).chunked(cols).forEach { row ->
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
+    // 시안 기본 앱(설정, 갤러리, Play 스토어, 카메라, 전화, 메시지, 인터넷, YouTube)을 앞에 두고
+    // 나머지는 기존 즐겨찾기 순서를 유지. 첫 홈 화면에는 두 줄을 배치.
+    val ordered = remember(apps) { apps.sandOrdered(SandDefaultFavorites) }
+    Column(
+        Modifier.padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(30.dp)
+    ) {
+        ordered.take(cols * 2).chunked(cols).forEach { row ->
+            Row(Modifier.fillMaxWidth()) {
                 row.forEach { app ->
                     AppIconCell(
                         app,
@@ -553,12 +592,12 @@ private fun ClockWidget(settings: NovaSettings) {
 }
  
 @Composable
-private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
+private fun WeatherCard(weather: WeatherState, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Pressable(
-        Modifier
+        modifier
             .fillMaxWidth()
             .homeGlass(
-                RoundedCornerShape(32.dp),
+                RoundedCornerShape(46.dp),
                 top = if (LocalNovaColors.current.isDark) Color(0x66627A9E) else Color(0x8C7F98E0),
                 bottom = if (LocalNovaColors.current.isDark) Color(0x33324A6B) else Color(0x5992A9E8)
             ),
@@ -569,13 +608,16 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
                 Column(
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = 24.dp, end = 22.dp, top = 20.dp, bottom = 18.dp)
+                        .padding(start = 27.dp, end = 22.dp, top = 24.dp, bottom = 19.dp)
                 ) {
                     if (weather.place.isNotBlank()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            Modifier.height(24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
                                 weather.place,
-                                fontSize = 17.sp,
+                                fontSize = 19.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = AuroraWhite,
                                 maxLines = 1,
@@ -586,28 +628,34 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
                             Icon(
                                 Icons.Rounded.LocationOn,
                                 contentDescription = null,
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(15.dp),
                                 tint = AuroraWhite
                             )
                         }
+                    } else {
+                        Spacer(Modifier.height(24.dp))
                     }
                     Text(
                         "${weather.tempC}°",
-                        fontSize = 54.sp,
+                        fontSize = 60.sp,
+                        lineHeight = 66.sp,
                         fontWeight = FontWeight.Light,
                         color = AuroraWhite
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(5.dp))
                     Text(
                         weather.description,
-                        fontSize = 16.sp,
+                        fontSize = 17.sp,
+                        lineHeight = 22.sp,
                         color = AuroraWhite,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         "최고 ${weather.high}° 최저 ${weather.low}°",
-                        fontSize = 16.sp,
+                        fontSize = 17.sp,
+                        lineHeight = 22.sp,
                         color = AuroraWhite
                     )
                 }
@@ -616,8 +664,8 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
                     HomeSun(
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 14.dp, end = 22.dp)
-                            .size(68.dp)
+                            .padding(top = 36.dp, end = 24.dp)
+                            .size(64.dp)
                     )
                 } else {
                     Text(
@@ -625,7 +673,7 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
                         fontSize = 52.sp,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 18.dp, end = 24.dp)
+                            .padding(top = 38.dp, end = 26.dp)
                     )
                 }
                 Icon(
@@ -634,13 +682,13 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
                     tint = AuroraMuted,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 16.dp)
+                        .padding(end = 22.dp, bottom = 19.dp)
                         .size(22.dp)
                 )
             }
             WeatherStatus.LOADING -> {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 26.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 27.dp, vertical = 34.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("🌡️", fontSize = 34.sp)
@@ -650,7 +698,7 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
             }
             WeatherStatus.ERROR -> {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 26.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 27.dp, vertical = 34.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("☁️", fontSize = 34.sp)
@@ -681,8 +729,8 @@ private fun SearchPill(onClick: () -> Unit) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(50.dp)
-                .padding(start = 14.dp, end = 16.dp),
+                .height(59.dp)
+                .padding(start = 18.dp, end = 22.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -705,28 +753,33 @@ private fun SearchPill(onClick: () -> Unit) {
             Text(
                 "위키백과 검색",
                 color = AuroraMuted,
-                fontSize = 16.sp,
+                fontSize = 17.sp,
                 modifier = Modifier.weight(1f)
             )
-            Icon(Icons.Rounded.Mic, contentDescription = "음성 검색", modifier = Modifier.size(21.dp), tint = AuroraMuted)
+            Icon(Icons.Rounded.Mic, contentDescription = "음성 검색", modifier = Modifier.size(22.dp), tint = AuroraMuted)
         }
     }
 }
  
 @Composable
 private fun PageDots(count: Int, current: Int) {
+    val dark = LocalNovaColors.current.isDark
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        Modifier.fillMaxWidth().padding(vertical = 14.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         repeat(count) { i ->
             Box(
                 Modifier
-                    .padding(horizontal = 5.dp)
-                    .size(7.dp)
+                    .padding(horizontal = 6.dp)
+                    .size(9.dp)
                     .clip(CircleShape)
-                    .background(if (i == current) AuroraWhite else AuroraWhite.copy(alpha = 0.35f))
+                    .background(
+                        if (i == current) Color.White
+                        else Color.White.copy(alpha = if (dark) 0.45f else 0.75f)
+                    )
+                    .border(0.5.dp, if (dark) Color.Transparent else Color(0x338A94C8), CircleShape)
             )
         }
     }
@@ -734,22 +787,23 @@ private fun PageDots(count: Int, current: Int) {
  
 @Composable
 private fun Dock(vm: NovaViewModel, dockApps: List<AppInfo>, settings: NovaSettings) {
-    val dockIcon = settings.iconSizeDp.coerceIn(40, 64).dp
-    val shown = dockApps.take(4)
+    val dockIcon = settings.iconSizeDp.coerceIn(40, 70).dp
+    // 시안 독 배치(전화, 메시지, 인터넷, 음악)를 앞에 두고 나머지는 기존 순서 유지
+    val shown = remember(dockApps) { dockApps.sandOrdered(SandDefaultDock).take(4) }
     Box(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .homeGlass(RoundedCornerShape(36.dp))
+            .homeGlass(RoundedCornerShape(50.dp))
     ) {
-        // 시안처럼 앱 4개를 홈 그리드 열과 같은 간격으로 배치
+        // 앱 4개를 홈 그리드 열과 같은 간격으로 배치
         Row(
-            Modifier.fillMaxWidth().padding(vertical = 14.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 21.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             shown.forEach { app ->
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    AppIconCell(app, vm, dockIcon, showLabel = false)
+                    AppIconCell(app, vm, dockIcon, showLabel = false, dock = true)
                 }
             }
             // 독 앱이 4개 미만이면 빈 칸에 앱 서랍 버튼을 두어 서랍 접근을 유지
@@ -768,7 +822,7 @@ private fun DrawerButton(size: Dp, onClick: () -> Unit) {
     Pressable(
         Modifier
             .size(size)
-            .clip(RoundedCornerShape(size * 0.30f))
+            .clip(RoundedCornerShape(size * 0.27f))
             .background(Brush.linearGradient(listOf(Color(0xFF62D6C0), Color(0xFF578CCB)))),
         onClick = onClick
     ) {
@@ -908,9 +962,9 @@ private fun HomeSun(modifier: Modifier = Modifier) {
             brush = Brush.radialGradient(
                 colors = listOf(Color(0xFFFFE27A), Color(0xFFF6C12F)),
                 center = c,
-                radius = r * 0.26f
+                radius = r * 0.29f
             ),
-            radius = r * 0.24f,
+            radius = r * 0.27f,
             center = c
         )
         for (i in 0 until 8) {
@@ -919,9 +973,9 @@ private fun HomeSun(modifier: Modifier = Modifier) {
             val dy = sin(a)
             drawLine(
                 color = Color(0xFFF2C24B),
-                start = Offset(c.x + dx * r * 0.34f, c.y + dy * r * 0.34f),
-                end = Offset(c.x + dx * r * 0.46f, c.y + dy * r * 0.46f),
-                strokeWidth = r * 0.05f,
+                start = Offset(c.x + dx * r * 0.37f, c.y + dy * r * 0.37f),
+                end = Offset(c.x + dx * r * 0.47f, c.y + dy * r * 0.47f),
+                strokeWidth = r * 0.055f,
                 cap = StrokeCap.Round
             )
         }
