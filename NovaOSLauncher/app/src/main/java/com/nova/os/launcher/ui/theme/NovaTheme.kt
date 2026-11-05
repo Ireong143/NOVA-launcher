@@ -65,12 +65,7 @@ val AccentPalette = listOf(
 class WallpaperPreset(val id: String, val name: String, val dark: List<Color>, val light: List<Color>)
  
 val Wallpapers = listOf(
-    // SAND 물결 배경 4종 (Wallpaper.kt의 WaveBackground가 그린다). 미리보기용 팔레트.
-    WallpaperPreset(
-        "wave_system", "SAND 시스템",
-        listOf(Color(0xFF040A1C), Color(0xFF1B3F94), Color(0xFF2650B8), Color(0xFF7B96FF)),
-        listOf(Color(0xFFEDEFFC), Color(0xFFB5C0F4), Color(0xFFFFFFFF), Color(0xFF9FB0F2)),
-    ),
+    // SAND 물결 배경 3종(라이트/다크/블루) (Wallpaper.kt의 WaveBackground가 그린다). 미리보기용 팔레트.
     WallpaperPreset(
         "wave_light", "SAND 라이트",
         listOf(Color(0xFFEDEFFC), Color(0xFFB5C0F4), Color(0xFFFFFFFF), Color(0xFF9FB0F2)),
@@ -122,20 +117,22 @@ fun wallpaperById(id: String): WallpaperPreset = Wallpapers.firstOrNull { it.id 
  
 val LocalNovaColors = staticCompositionLocalOf<NovaColors> { error("NovaTheme is missing") }
 val LocalNovaMotion = staticCompositionLocalOf { NovaMotion(enabled = true, speed = 1f) }
+/** SAND 블루 테마가 선택돼 있는지. 유리 질감을 파랗게 바꾸는 데 쓴다. */
+val LocalNovaBlue = staticCompositionLocalOf { false }
  
-private fun buildColors(dark: Boolean, base: Color): NovaColors =
+private fun buildColors(dark: Boolean, base: Color, blue: Boolean): NovaColors =
     if (dark) {
         NovaColors(
             isDark = true,
-            accent = base,
+            accent = if (blue) Color(0xFFBFD8FF) else base,
             onAccent = Color(0xFF0B1020),
             text = Color(0xFFF4F6FF),
             textSecondary = Color(0xB3F4F6FF),
-            glass = Color(0x1FFFFFFF),
-            glassStrong = Color(0x33FFFFFF),
+            glass = if (blue) Color(0x33FFFFFF) else Color(0x1FFFFFFF),
+            glassStrong = if (blue) Color(0x4DFFFFFF) else Color(0x33FFFFFF),
             glassBorder = Color(0x40FFFFFF),
-            sheet = Color(0xE60A0C16),
-            panel = Color(0xFF14172B),
+            sheet = if (blue) Color(0xF01546C8) else Color(0xE60A0C16),
+            panel = if (blue) Color(0xFF1A4FD0) else Color(0xFF14172B),
             danger = Color(0xFFFF6B6B),
             good = Color(0xFF4ADE80),
             warn = Color(0xFFFBBF24),
@@ -158,20 +155,20 @@ private fun buildColors(dark: Boolean, base: Color): NovaColors =
         )
     }
  
-private fun buildScheme(c: NovaColors): ColorScheme =
+private fun buildScheme(c: NovaColors, blue: Boolean): ColorScheme =
     if (c.isDark) {
         darkColorScheme(
             primary = c.accent,
             onPrimary = c.onAccent,
             secondary = c.accent,
-            background = Color(0xFF0A0C16),
+            background = if (blue) Color(0xFF1648E0) else Color(0xFF0A0C16),
             onBackground = c.text,
             surface = c.panel,
             onSurface = c.text,
-            surfaceVariant = Color(0xFF232842),
+            surfaceVariant = if (blue) Color(0xFF2A5FE0) else Color(0xFF232842),
             onSurfaceVariant = c.textSecondary,
-            surfaceContainer = Color(0xFF1B1F36),
-            surfaceContainerHigh = Color(0xFF1F2440),
+            surfaceContainer = if (blue) Color(0xFF1A4FD0) else Color(0xFF1B1F36),
+            surfaceContainerHigh = if (blue) Color(0xFF2457DD) else Color(0xFF1F2440),
             outline = c.glassBorder,
             error = c.danger,
         )
@@ -198,7 +195,7 @@ fun NovaTheme(settings: NovaSettings, content: @Composable () -> Unit) {
     val systemDark = isSystemInDarkTheme()
     // SAND 라이트/다크/블루 배경을 고르면 글자색도 그 배경에 맞춰 고정(블루는 다크 계열 글자).
     val dark = when (settings.wallpaperId) {
-        "wave_light" -> false
+        "wave_light", "wave_system" -> false // wave_system: 예전에 저장된 값은 라이트로 취급
         "wave_dark", "wave_blue" -> true
         else -> when (settings.themeMode) {
             ThemeMode.SYSTEM -> systemDark
@@ -207,14 +204,16 @@ fun NovaTheme(settings: NovaSettings, content: @Composable () -> Unit) {
         }
     }
     val base = AccentPalette[settings.accentIndex.coerceIn(0, AccentPalette.lastIndex)].color
-    val colors = remember(dark, base) { buildColors(dark, base) }
-    val scheme = remember(colors) { buildScheme(colors) }
+    val blue = settings.wallpaperId == "wave_blue"
+    val colors = remember(dark, base, blue) { buildColors(dark, base, blue) }
+    val scheme = remember(colors, blue) { buildScheme(colors, blue) }
     val motion = remember(settings.animationsEnabled, settings.animationSpeed) {
         NovaMotion(settings.animationsEnabled, settings.animationSpeed)
     }
     CompositionLocalProvider(
         LocalNovaColors provides colors,
         LocalNovaMotion provides motion,
+        LocalNovaBlue provides blue,
         LocalContentColor provides colors.text,
     ) {
         MaterialTheme(colorScheme = scheme, typography = Typography(), content = content)
