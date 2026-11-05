@@ -3,7 +3,10 @@
 package com.nova.os.launcher.ui.components
  
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -100,7 +103,12 @@ fun Pressable(
     val motion = LocalNovaMotion.current
     val scale by animateFloatAsState(
         targetValue = if (pressed) scaleDown else 1f,
-        animationSpec = motion.spec(140),
+        // 눌림/복귀를 스프링으로 처리해 손을 뗄 때 부드럽게 되돌아온다.
+        animationSpec = if (motion.enabled) {
+            spring<Float>(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)
+        } else {
+            snap<Float>()
+        },
         label = "pressScale",
     )
     Box(
@@ -134,7 +142,12 @@ fun GlassCard(
     val border = Brush.linearGradient(listOf(c.glassBorder, c.glassBorder.copy(alpha = c.glassBorder.alpha * 0.25f)))
     var m = modifier
         .clip(shape)
-        .background(if (strong) c.glassStrong else c.glass)
+        .background(
+            // 위가 밝고 아래로 옅어지는 유리 질감
+            (if (strong) c.glassStrong else c.glass).let { base ->
+                Brush.verticalGradient(listOf(base, base.copy(alpha = base.alpha * 0.62f)))
+            }
+        )
         .border(1.dp, border, shape)
     if (onClick != null || onLongClick != null) {
         m = m.combinedClickable(onLongClick = onLongClick, onClick = onClick ?: {})
@@ -336,6 +349,12 @@ fun ToolScaffold(
         modifier
             .fillMaxSize()
             .background(c.sheet)
+            // 위쪽에 맺히는 빛 반사: 유리 느낌
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = if (c.isDark) 0.10f else 0.34f), Color.Transparent)
+                )
+            )
             .blockTouches()
             .statusBarsPadding()
             .navigationBarsPadding()
