@@ -223,9 +223,8 @@ fun WallpaperLayer(settings: NovaSettings, custom: ImageBitmap?, blurRadius: Dp)
         } else {
             val preset = wallpaperById(settings.wallpaperId)
             val animated = settings.animatedWallpaper && settings.animationsEnabled
-            // wave_system: 시스템(테마) 라이트/다크를 따라간다. 나머지는 고정.
+            // SAND 라이트/다크/블루. (저장된 옛 id는 wallpaperById가 라이트로 대체)
             val wave = when (preset.id) {
-                "wave_system" -> if (c.isDark) SandWaveDark else SandWaveLight
                 "wave_light" -> SandWaveLight
                 "wave_dark" -> SandWaveDark
                 "wave_blue" -> SandWaveBlue
