@@ -25,6 +25,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -50,6 +52,7 @@ import com.nova.os.launcher.NovaViewModel
 import com.nova.os.launcher.data.*
 import com.nova.os.launcher.system.SystemActions
 import com.nova.os.launcher.ui.components.*
+import com.nova.os.launcher.ui.theme.LocalNovaBlue
 import com.nova.os.launcher.ui.theme.LocalNovaColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -60,6 +63,7 @@ import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.absoluteValue
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
  
 // 테마(라이트/다크)에 맞는 글자색
@@ -80,9 +84,10 @@ private fun Modifier.homeGlass(
     bottom: Color? = null
 ): Modifier {
     val dark = LocalNovaColors.current.isDark
-    val t = top ?: if (dark) Color(0x38FFFFFF) else Color(0x99FFFFFF)
-    val b = bottom ?: if (dark) Color(0x12FFFFFF) else Color(0x4DFFFFFF)
-    val bt = if (dark) Color(0x66FFFFFF) else Color(0xE6FFFFFF)
+    val blue = LocalNovaBlue.current
+    val t = top ?: if (blue) Color(0x52FFFFFF) else if (dark) Color(0x38FFFFFF) else Color(0x99FFFFFF)
+    val b = bottom ?: if (blue) Color(0x1FFFFFFF) else if (dark) Color(0x12FFFFFF) else Color(0x4DFFFFFF)
+    val bt = if (blue) Color(0x80FFFFFF) else if (dark) Color(0x66FFFFFF) else Color(0xE6FFFFFF)
     val bb = if (dark) Color(0x14FFFFFF) else Color(0x4DFFFFFF)
     return this
         .clip(shape)
@@ -143,12 +148,16 @@ fun HomeScreen(vm: NovaViewModel) {
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            // 시안처럼 로고·배터리·검색창을 하나의 유리 패널로 묶음.
-            // 검색창은 기존처럼 첫 페이지 + 설정(showSearchBar)이 켜져 있을 때만 표시.
+            // 시간·상태 아이콘·배터리·검색창을 하나의 유리 패널로 묶음.
+            // 검색창은 설정(showSearchBar)이 켜져 있으면 첫 페이지에서 보이고,
+            // 옆 페이지로 넘기는 만큼 서서히 투명해지며 패널이 접힌다.
             HomeTopBar(
                 battery = battery,
                 use24h = settings.use24h,
-                showSearch = settings.showSearchBar && pagerState.currentPage == 0,
+                showSearch = settings.showSearchBar,
+                searchProgress = {
+                    (1f - (pagerState.currentPage + pagerState.currentPageOffsetFraction)).coerceIn(0f, 1f)
+                },
                 onSearch = { vm.openSearch() },
                 onBattery = { vm.open(Overlay.Control) }
             )
@@ -202,26 +211,26 @@ private fun HomeTopBar(
     battery: BatteryState,
     use24h: Boolean,
     showSearch: Boolean,
+    searchProgress: () -> Float,
     onSearch: () -> Unit,
     onBattery: () -> Unit
 ) {
     val now by rememberMinuteClock()
+    val status by rememberSysStatus()
     val timeText = remember(now, use24h) {
         now.format(DateTimeFormatter.ofPattern(if (use24h) "H:mm" else "h:mm", Locale.getDefault()))
     }
-    // 시안: 둥근 유리 패널 하나 안에 시간 + 배터리, 그 아래 검색창.
-    // 검색창은 기존처럼 첫 페이지 + 설정(showSearchBar)이 켜져 있을 때만 표시.
+    // 시안: 둥근 유리 패널 하나 안에 시간 + 상태 아이콘 + 배터리, 그 아래 검색창.
     Column(
         Modifier
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, top = 12.dp)
-            .animateContentSize()
             .homeGlass(RoundedCornerShape(50.dp))
             .padding(
                 start = 17.dp,
                 end = 17.dp,
                 top = 24.dp,
-                bottom = if (showSearch) 25.dp else 18.dp
+                bottom = 18.dp
             )
     ) {
         Row(
@@ -244,7 +253,12 @@ private fun HomeTopBar(
                 Modifier.clip(CircleShape),
                 onClick = onBattery
             ) {
-                Box(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                Row(
+                    Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    HomeStatusIcons(status, AuroraWhite)
                     HomeBattery(
                         percent = battery.percent,
                         charging = battery.charging,
@@ -256,8 +270,21 @@ private fun HomeTopBar(
         }
  
         if (showSearch) {
-            Spacer(Modifier.height(30.dp))
-            SearchPill(onSearch)
+            // 페이지를 넘기는 정도(searchProgress)에 맞춰 높이와 투명도가 같이 줄어든다.
+            Column(
+                Modifier
+                    .layout { measurable, constraints ->
+                        val p = measurable.measure(constraints)
+                        val h = (p.height * searchProgress()).roundToInt()
+                        layout(p.width, h) { p.place(0, 0) }
+                    }
+                    .graphicsLayer { alpha = searchProgress() }
+                    .clipToBounds()
+            ) {
+                Spacer(Modifier.height(30.dp))
+                SearchPill(onSearch)
+                Spacer(Modifier.height(7.dp))
+            }
         }
     }
 }
@@ -598,8 +625,10 @@ private fun WeatherCard(weather: WeatherState, modifier: Modifier = Modifier, on
             .fillMaxWidth()
             .homeGlass(
                 RoundedCornerShape(46.dp),
-                top = if (LocalNovaColors.current.isDark) Color(0x66627A9E) else Color(0x8C7F98E0),
-                bottom = if (LocalNovaColors.current.isDark) Color(0x33324A6B) else Color(0x5992A9E8)
+                top = if (LocalNovaBlue.current) Color(0x66A9CCFF)
+                else if (LocalNovaColors.current.isDark) Color(0x66627A9E) else Color(0x8C7F98E0),
+                bottom = if (LocalNovaBlue.current) Color(0x333B78F0)
+                else if (LocalNovaColors.current.isDark) Color(0x33324A6B) else Color(0x5992A9E8)
             ),
         onClick = onClick
     ) {
@@ -721,8 +750,10 @@ private fun SearchPill(onClick: () -> Unit) {
             .fillMaxWidth()
             .homeGlass(
                 CircleShape,
-                top = if (LocalNovaColors.current.isDark) Color(0x30FFFFFF) else Color(0xB3FFFFFF),
-                bottom = if (LocalNovaColors.current.isDark) Color(0x18FFFFFF) else Color(0x66FFFFFF)
+                top = if (LocalNovaBlue.current) Color(0x66FFFFFF)
+                else if (LocalNovaColors.current.isDark) Color(0x30FFFFFF) else Color(0xB3FFFFFF),
+                bottom = if (LocalNovaBlue.current) Color(0x33FFFFFF)
+                else if (LocalNovaColors.current.isDark) Color(0x18FFFFFF) else Color(0x66FFFFFF)
             ),
         onClick = onClick
     ) {
