@@ -1,5 +1,5 @@
 package com.nova.os.launcher.ui.home
-
+ 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -26,7 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -52,28 +55,39 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
+import kotlin.math.PI
 import kotlin.math.absoluteValue
-
-private val AuroraWhite = Color(0xFFF7FAFF)
-private val AuroraMuted = Color(0xFFC4D2DF)
+import kotlin.math.cos
+import kotlin.math.sin
+ 
+// 테마(라이트/다크)에 맞는 글자색
+private val AuroraWhite: Color
+    @Composable get() = LocalNovaColors.current.text
+private val AuroraMuted: Color
+    @Composable get() = LocalNovaColors.current.textSecondary
 private val GlassStroke = Color(0x42FFFFFF)
-
+ 
 /**
  * 시안의 유리 패널 질감: 위→아래로 옅어지는 반투명 채움 + 위쪽이 밝은 테두리.
+ * 라이트/다크 테마에 따라 색이 바뀐다.
  */
+@Composable
 private fun Modifier.homeGlass(
     shape: Shape,
-    top: Color = Color(0x38FFFFFF),
-    bottom: Color = Color(0x12FFFFFF)
-): Modifier = this
-    .clip(shape)
-    .background(Brush.verticalGradient(listOf(top, bottom)))
-    .border(
-        1.dp,
-        Brush.verticalGradient(listOf(Color(0x66FFFFFF), Color(0x14FFFFFF))),
-        shape
-    )
-
+    top: Color? = null,
+    bottom: Color? = null
+): Modifier {
+    val dark = LocalNovaColors.current.isDark
+    val t = top ?: if (dark) Color(0x38FFFFFF) else Color(0x99FFFFFF)
+    val b = bottom ?: if (dark) Color(0x12FFFFFF) else Color(0x4DFFFFFF)
+    val bt = if (dark) Color(0x66FFFFFF) else Color(0xE6FFFFFF)
+    val bb = if (dark) Color(0x14FFFFFF) else Color(0x4DFFFFFF)
+    return this
+        .clip(shape)
+        .background(Brush.verticalGradient(listOf(t, b)))
+        .border(1.dp, Brush.verticalGradient(listOf(bt, bb)), shape)
+}
+ 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(vm: NovaViewModel) {
@@ -84,36 +98,26 @@ fun HomeScreen(vm: NovaViewModel) {
     val pageCount = settings.homePages.coerceIn(1, 3)
     val pagerState = rememberPagerState(pageCount = { pageCount })
     var quickMenu by remember { mutableStateOf(false) }
-
+ 
     LaunchedEffect(vm.homeResetTick) {
         if (vm.homeResetTick > 0 && pagerState.currentPage != 0) {
             pagerState.animateScrollToPage(0)
         }
     }
-
+ 
     LaunchedEffect(pageCount) {
         if (pagerState.currentPage >= pageCount) pagerState.scrollToPage(0)
     }
-
+ 
     LaunchedEffect(Unit) { vm.refreshWeather() }
-
+ 
     BackHandler(enabled = pagerState.currentPage != 0 && vm.overlay == Overlay.None) {
         scope.launch { pagerState.animateScrollToPage(0) }
     }
-
+ 
     Box(
         Modifier
             .fillMaxSize()
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFF10252B),
-                        Color(0xFF142D39),
-                        Color(0xFF111C29),
-                        Color(0xFF101D1C)
-                    )
-                )
-            )
             .pointerInput(Unit) {
                 var total = 0f
                 detectVerticalDragGestures(
@@ -129,58 +133,8 @@ fun HomeScreen(vm: NovaViewModel) {
                 )
             }
     ) {
-        // 상단 청록빛 오로라 조명
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(430.dp)
-                .align(Alignment.TopCenter)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Color(0x6655D8C4),
-                            Color(0x334A9EB5),
-                            Color.Transparent
-                        ),
-                        radius = 920f
-                    )
-                )
-        )
-
-        // 오른쪽 중앙의 은은한 푸른빛
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(510.dp)
-                .align(Alignment.TopCenter)
-                .offset(x = 78.dp, y = 170.dp)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Color(0x454D78C4),
-                            Color(0x203F5B91),
-                            Color.Transparent
-                        ),
-                        radius = 960f
-                    )
-                )
-        )
-
-        // 하단의 어두운 청록빛
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(430.dp)
-                .align(Alignment.BottomCenter)
-                .offset(x = (-65).dp, y = (-35).dp)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color(0x3339B7A2), Color.Transparent),
-                        radius = 900f
-                    )
-                )
-        )
-
+        // 배경은 NovaApp의 WallpaperLayer(설정의 배경화면 프리셋/사진)가 그린다.
+ 
         Column(
             Modifier
                 .fillMaxSize()
@@ -195,7 +149,7 @@ fun HomeScreen(vm: NovaViewModel) {
                 onSearch = { vm.openSearch() },
                 onBattery = { vm.open(Overlay.Control) }
             )
-
+ 
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.weight(1f).fillMaxWidth()
@@ -219,11 +173,11 @@ fun HomeScreen(vm: NovaViewModel) {
                     }
                 }
             }
-
+ 
             if (pageCount > 1) {
                 PageDots(count = pageCount, current = pagerState.currentPage)
             }
-
+ 
             if (settings.showDock) {
                 Dock(vm, dockApps, settings)
             } else {
@@ -235,11 +189,11 @@ fun HomeScreen(vm: NovaViewModel) {
                 }
             }
         }
-
+ 
         if (quickMenu) QuickMenu(vm) { quickMenu = false }
     }
 }
-
+ 
 @Composable
 private fun HomeTopBar(
     battery: BatteryState,
@@ -266,9 +220,9 @@ private fun HomeTopBar(
                 letterSpacing = 2.8.sp,
                 color = AuroraWhite
             )
-
+ 
             Spacer(Modifier.weight(1f))
-
+ 
             Pressable(
                 Modifier.clip(CircleShape),
                 onClick = onBattery
@@ -282,31 +236,31 @@ private fun HomeTopBar(
                         else Icons.Rounded.BatteryFull,
                         contentDescription = "배터리",
                         modifier = Modifier.size(20.dp),
-                        tint = if (battery.charging) Color(0xFF8DE8C6) else Color.White
+                        tint = if (battery.charging) Color(0xFF8DE8C6) else AuroraWhite
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         if (battery.valid) "${battery.percent}%" else "--",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = AuroraWhite
                     )
                 }
             }
         }
-
+ 
         if (showSearch) {
             Spacer(Modifier.height(8.dp))
             SearchPill(onSearch)
         }
     }
 }
-
+ 
 @Composable
 private fun MainPage(vm: NovaViewModel, settings: NovaSettings, onLongPress: () -> Unit) {
     val favorites by vm.favoriteApps.collectAsState()
     val weather by vm.weather.collectAsState()
-
+ 
     Column(
         Modifier
             .fillMaxSize()
@@ -321,16 +275,16 @@ private fun MainPage(vm: NovaViewModel, settings: NovaSettings, onLongPress: () 
         } else {
             Spacer(Modifier.height(8.dp))
         }
-
+ 
         FavoritesGrid(vm, favorites, settings)
     }
 }
-
+ 
 @Composable
 private fun FavoritesGrid(vm: NovaViewModel, apps: List<AppInfo>, settings: NovaSettings) {
     val c = LocalNovaColors.current
     val cols = settings.favColumns.coerceIn(3, 5)
-
+ 
     if (apps.isEmpty()) {
         GlassCard(Modifier.fillMaxWidth()) {
             Text(
@@ -343,7 +297,7 @@ private fun FavoritesGrid(vm: NovaViewModel, apps: List<AppInfo>, settings: Nova
         }
         return
     }
-
+ 
     // 스크린샷처럼 첫 홈 화면에는 두 줄의 즐겨찾기 앱을 배치
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
         apps.take(cols * 2).chunked(cols).forEach { row ->
@@ -365,21 +319,21 @@ private fun FavoritesGrid(vm: NovaViewModel, apps: List<AppInfo>, settings: Nova
         }
     }
 }
-
+ 
 @Composable
 private fun WidgetsPage(vm: NovaViewModel, onLongPress: () -> Unit) {
     val c = LocalNovaColors.current
     val context = LocalContext.current
     val battery by vm.battery.collectAsState()
     val notes by vm.notes.collectAsState()
-
+ 
     val stats by produceState(initialValue = SystemActions.readStats(context)) {
         while (true) {
             delay(5000)
             value = SystemActions.readStats(context)
         }
     }
-
+ 
     Column(
         Modifier
             .fillMaxSize()
@@ -390,14 +344,14 @@ private fun WidgetsPage(vm: NovaViewModel, onLongPress: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Spacer(Modifier.height(8.dp))
-
+ 
         Text(
             "오늘",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold,
             color = AuroraWhite
         )
-
+ 
         GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(30.dp)) {
             Row(
                 Modifier.padding(20.dp),
@@ -414,7 +368,7 @@ private fun WidgetsPage(vm: NovaViewModel, onLongPress: () -> Unit) {
                 }
             }
         }
-
+ 
         GlassCard(
             Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(30.dp),
@@ -434,10 +388,10 @@ private fun WidgetsPage(vm: NovaViewModel, onLongPress: () -> Unit) {
                     Spacer(Modifier.weight(1f))
                     Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = AuroraMuted)
                 }
-
+ 
                 val recent = notes.filter { it.text.isNotBlank() }
                     .sortedByDescending { it.updatedAt }.take(3)
-
+ 
                 if (recent.isEmpty()) {
                     Text("탭해서 첫 메모를 작성해 보세요", color = AuroraMuted, fontSize = 14.sp)
                 } else {
@@ -453,7 +407,7 @@ private fun WidgetsPage(vm: NovaViewModel, onLongPress: () -> Unit) {
                 }
             }
         }
-
+ 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ToolTile(Icons.Rounded.Calculate, "계산기", Modifier.weight(1f)) { vm.open(Overlay.Calculator) }
             ToolTile(Icons.Rounded.EditNote, "메모", Modifier.weight(1f)) { vm.open(Overlay.Notes) }
@@ -462,7 +416,7 @@ private fun WidgetsPage(vm: NovaViewModel, onLongPress: () -> Unit) {
         }
     }
 }
-
+ 
 @Composable
 fun ToolTile(icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     GlassCard(modifier, shape = RoundedCornerShape(24.dp), onClick = onClick) {
@@ -482,13 +436,13 @@ fun ToolTile(icon: ImageVector, label: String, modifier: Modifier = Modifier, on
         }
     }
 }
-
+ 
 @Composable
 private fun FrequentPage(vm: NovaViewModel, settings: NovaSettings, onLongPress: () -> Unit) {
     val c = LocalNovaColors.current
     val apps by vm.frequentApps.collectAsState()
     val cols = settings.favColumns.coerceIn(3, 5)
-
+ 
     Column(
         Modifier
             .fillMaxSize()
@@ -500,7 +454,7 @@ private fun FrequentPage(vm: NovaViewModel, settings: NovaSettings, onLongPress:
     ) {
         Spacer(Modifier.height(8.dp))
         Text("자주 쓰는 앱", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = AuroraWhite)
-
+ 
         if (apps.isEmpty()) {
             GlassCard(Modifier.fillMaxWidth()) {
                 Text(
@@ -523,12 +477,12 @@ private fun FrequentPage(vm: NovaViewModel, settings: NovaSettings, onLongPress:
         }
     }
 }
-
+ 
 @Composable
 fun rememberMinuteClock(): State<LocalDateTime> {
     val context = LocalContext.current
     val state = remember { mutableStateOf(LocalDateTime.now()) }
-
+ 
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, i: Intent?) {
@@ -546,7 +500,7 @@ fun rememberMinuteClock(): State<LocalDateTime> {
     }
     return state
 }
-
+ 
 @Composable
 private fun ClockWidget(settings: NovaSettings) {
     val now by rememberMinuteClock()
@@ -558,7 +512,7 @@ private fun ClockWidget(settings: NovaSettings) {
     val date = remember(now) {
         now.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale))
     }
-
+ 
     Box(
         Modifier
             .fillMaxWidth()
@@ -597,7 +551,7 @@ private fun ClockWidget(settings: NovaSettings) {
         }
     }
 }
-
+ 
 @Composable
 private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
     Pressable(
@@ -605,8 +559,8 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
             .fillMaxWidth()
             .homeGlass(
                 RoundedCornerShape(32.dp),
-                top = Color(0x66627A9E),
-                bottom = Color(0x33324A6B)
+                top = if (LocalNovaColors.current.isDark) Color(0x66627A9E) else Color(0x8C7F98E0),
+                bottom = if (LocalNovaColors.current.isDark) Color(0x33324A6B) else Color(0x5992A9E8)
             ),
         onClick = onClick
     ) {
@@ -657,13 +611,23 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
                         color = AuroraWhite
                     )
                 }
-                Text(
-                    weather.emoji,
-                    fontSize = 52.sp,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 18.dp, end = 24.dp)
-                )
+                if (weather.emoji.startsWith("\u2600")) {
+                    // 맑음: 시안처럼 직접 그린 해
+                    HomeSun(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 14.dp, end = 22.dp)
+                            .size(68.dp)
+                    )
+                } else {
+                    Text(
+                        weather.emoji,
+                        fontSize = 52.sp,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 18.dp, end = 24.dp)
+                    )
+                }
                 Icon(
                     Icons.Rounded.ChevronRight,
                     contentDescription = null,
@@ -701,13 +665,17 @@ private fun WeatherCard(weather: WeatherState, onClick: () -> Unit) {
         }
     }
 }
-
+ 
 @Composable
 private fun SearchPill(onClick: () -> Unit) {
     Pressable(
         Modifier
             .fillMaxWidth()
-            .homeGlass(CircleShape, top = Color(0x30FFFFFF), bottom = Color(0x18FFFFFF)),
+            .homeGlass(
+                CircleShape,
+                top = if (LocalNovaColors.current.isDark) Color(0x30FFFFFF) else Color(0xB3FFFFFF),
+                bottom = if (LocalNovaColors.current.isDark) Color(0x18FFFFFF) else Color(0x66FFFFFF)
+            ),
         onClick = onClick
     ) {
         Row(
@@ -744,7 +712,7 @@ private fun SearchPill(onClick: () -> Unit) {
         }
     }
 }
-
+ 
 @Composable
 private fun PageDots(count: Int, current: Int) {
     Row(
@@ -758,46 +726,43 @@ private fun PageDots(count: Int, current: Int) {
                     .padding(horizontal = 5.dp)
                     .size(7.dp)
                     .clip(CircleShape)
-                    .background(if (i == current) Color.White else Color.White.copy(alpha = 0.35f))
+                    .background(if (i == current) AuroraWhite else AuroraWhite.copy(alpha = 0.35f))
             )
         }
     }
 }
-
+ 
 @Composable
 private fun Dock(vm: NovaViewModel, dockApps: List<AppInfo>, settings: NovaSettings) {
-    val dockIcon = settings.iconSizeDp.coerceIn(40, 52).dp
+    val dockIcon = settings.iconSizeDp.coerceIn(40, 64).dp
+    val shown = dockApps.take(4)
     Box(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .homeGlass(
-                RoundedCornerShape(36.dp),
-                top = Color(0x40FFFFFF),
-                bottom = Color(0x14FFFFFF)
-            )
+            .homeGlass(RoundedCornerShape(36.dp))
     ) {
+        // 시안처럼 앱 4개를 홈 그리드 열과 같은 간격으로 배치
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            Modifier.fillMaxWidth().padding(vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 스크린샷과 같이 앱 4개 + 앱 서랍 버튼 1개
-            dockApps.take(4).forEach { app ->
+            shown.forEach { app ->
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     AppIconCell(app, vm, dockIcon, showLabel = false)
                 }
             }
-            repeat((4 - dockApps.take(4).size).coerceAtLeast(0)) {
-                Spacer(Modifier.weight(1f))
-            }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                DrawerButton(size = dockIcon) { vm.open(Overlay.Drawer) }
+            // 독 앱이 4개 미만이면 빈 칸에 앱 서랍 버튼을 두어 서랍 접근을 유지
+            if (shown.size < 4) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    DrawerButton(size = dockIcon) { vm.open(Overlay.Drawer) }
+                }
+                repeat(3 - shown.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
 }
-
+ 
 @Composable
 private fun DrawerButton(size: Dp, onClick: () -> Unit) {
     Pressable(
@@ -810,7 +775,7 @@ private fun DrawerButton(size: Dp, onClick: () -> Unit) {
         Icon(Icons.Rounded.Apps, "앱 서랍", Modifier.align(Alignment.Center).size(size * 0.5f), tint = Color.White)
     }
 }
-
+ 
 @Composable
 fun BatteryRing(percent: Int, charging: Boolean, modifier: Modifier = Modifier) {
     val c = LocalNovaColors.current
@@ -844,7 +809,7 @@ fun BatteryRing(percent: Int, charging: Boolean, modifier: Modifier = Modifier) 
         Text("$percent%", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AuroraWhite)
     }
 }
-
+ 
 @Composable
 private fun StatBar(label: String, used: Long, total: Long) {
     val fraction = if (total > 0) (used.toFloat() / total).coerceIn(0f, 1f) else 0f
@@ -859,7 +824,7 @@ private fun StatBar(label: String, used: Long, total: Long) {
         }
         Box(
             Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.12f))
+                .background(AuroraWhite.copy(alpha = 0.12f))
         ) {
             Box(
                 Modifier.fillMaxWidth(fraction).height(6.dp).clip(CircleShape)
@@ -868,15 +833,21 @@ private fun StatBar(label: String, used: Long, total: Long) {
         }
     }
 }
-
+ 
 @Composable
 private fun QuickMenu(vm: NovaViewModel, onDismiss: () -> Unit) {
     val shape = RoundedCornerShape(30.dp)
+    val dark = LocalNovaColors.current.isDark
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier
                 .clip(shape)
-                .background(Brush.verticalGradient(listOf(Color(0xF21E2A40), Color(0xF2141D2E))))
+                .background(
+                    Brush.verticalGradient(
+                        if (dark) listOf(Color(0xF21E2A40), Color(0xF2141D2E))
+                        else listOf(Color(0xF2FFFFFF), Color(0xF2F1F4FB))
+                    )
+                )
                 .border(
                     1.dp,
                     Brush.verticalGradient(listOf(Color(0x59FFFFFF), Color(0x14FFFFFF))),
@@ -901,7 +872,7 @@ private fun QuickMenu(vm: NovaViewModel, onDismiss: () -> Unit) {
         }
     }
 }
-
+ 
 @Composable
 private fun QuickMenuDivider() {
     Box(
@@ -909,10 +880,10 @@ private fun QuickMenuDivider() {
             .fillMaxWidth()
             .padding(start = 70.dp, end = 18.dp)
             .height(0.5.dp)
-            .background(Color(0x26FFFFFF))
+            .background(LocalNovaColors.current.text.copy(alpha = 0.14f))
     )
 }
-
+ 
 @Composable
 private fun QuickMenuItem(icon: ImageVector, title: String, onClick: () -> Unit) {
     Pressable(Modifier.fillMaxWidth(), onClick = onClick) {
@@ -926,3 +897,34 @@ private fun QuickMenuItem(icon: ImageVector, title: String, onClick: () -> Unit)
         }
     }
 }
+ 
+ 
+@Composable
+private fun HomeSun(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val c = center
+        val r = size.minDimension
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFFFFE27A), Color(0xFFF6C12F)),
+                center = c,
+                radius = r * 0.26f
+            ),
+            radius = r * 0.24f,
+            center = c
+        )
+        for (i in 0 until 8) {
+            val a = (i * PI / 4).toFloat()
+            val dx = cos(a)
+            val dy = sin(a)
+            drawLine(
+                color = Color(0xFFF2C24B),
+                start = Offset(c.x + dx * r * 0.34f, c.y + dy * r * 0.34f),
+                end = Offset(c.x + dx * r * 0.46f, c.y + dy * r * 0.46f),
+                strokeWidth = r * 0.05f,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
+ 
