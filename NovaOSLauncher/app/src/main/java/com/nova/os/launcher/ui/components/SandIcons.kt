@@ -1,5 +1,5 @@
 package com.nova.os.launcher.ui.components
-
+ 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,12 +32,12 @@ import com.nova.os.launcher.data.AppInfo
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-
+ 
 /** 시안에 나오는 기본 앱 종류. 설치된 앱과 매칭되면 시안풍으로 직접 그린 아이콘을 쓴다. */
 enum class SandKind { SETTINGS, GALLERY, PLAY, CAMERA, PHONE, MESSAGES, INTERNET, YOUTUBE, MUSIC }
-
+ 
 private class SandSpec(val kind: SandKind, val packages: Set<String>, val labels: List<String>)
-
+ 
 private val SandSpecs = listOf(
     SandSpec(SandKind.SETTINGS, setOf("com.android.settings"), listOf("설정", "Settings")),
     SandSpec(SandKind.GALLERY, setOf("com.sec.android.gallery3d"), listOf("갤러리", "Gallery")),
@@ -61,7 +61,7 @@ private val SandSpecs = listOf(
         listOf("음악", "Music", "YouTube Music")
     ),
 )
-
+ 
 fun sandKindOf(app: AppInfo): SandKind? {
     val label = app.label.trim()
     for (s in SandSpecs) {
@@ -70,23 +70,23 @@ fun sandKindOf(app: AppInfo): SandKind? {
     }
     return null
 }
-
+ 
 /** 시안의 첫 홈 화면 배치(2줄) */
 val SandDefaultFavorites = listOf(
     SandKind.SETTINGS, SandKind.GALLERY, SandKind.PLAY, SandKind.CAMERA,
     SandKind.PHONE, SandKind.MESSAGES, SandKind.INTERNET, SandKind.YOUTUBE,
 )
-
+ 
 /** 시안의 독 배치 */
 val SandDefaultDock = listOf(SandKind.PHONE, SandKind.MESSAGES, SandKind.INTERNET, SandKind.MUSIC)
-
+ 
 /** order에 있는 앱을 그 순서대로 앞에 두고, 나머지는 원래 순서를 유지한다(안정 정렬). */
 fun List<AppInfo>.sandOrdered(order: List<SandKind>): List<AppInfo> =
     sortedBy { app ->
         val i = sandKindOf(app)?.let { order.indexOf(it) } ?: -1
         if (i < 0) order.size + 1 else i
     }
-
+ 
 @Composable
 fun SandAppIcon(kind: SandKind, size: Dp, modifier: Modifier = Modifier, dock: Boolean = false) {
     val shape = RoundedCornerShape(size * 0.27f)
@@ -103,13 +103,13 @@ fun SandAppIcon(kind: SandKind, size: Dp, modifier: Modifier = Modifier, dock: B
                     .background(Brush.verticalGradient(listOf(Color(0xFF63E772), Color(0xFF1BAF38)))),
                 contentAlignment = Alignment.Center
             ) { Icon(Icons.Rounded.Call, null, Modifier.size(size * 0.56f), tint = Color.White) }
-
+ 
             SandKind.MUSIC -> Box(
                 Modifier.fillMaxSize()
                     .background(Brush.verticalGradient(listOf(Color(0xFFFF6A78), Color(0xFFE5213B)))),
                 contentAlignment = Alignment.Center
             ) { Icon(Icons.Rounded.MusicNote, null, Modifier.size(size * 0.62f), tint = Color.White) }
-
+ 
             else -> Canvas(Modifier.fillMaxSize()) {
                 when (kind) {
                     SandKind.SETTINGS -> drawSandSettings()
@@ -125,7 +125,7 @@ fun SandAppIcon(kind: SandKind, size: Dp, modifier: Modifier = Modifier, dock: B
         }
     }
 }
-
+ 
 private fun DrawScope.drawSandSettings() {
     val s = size.minDimension
     val c = center
@@ -158,7 +158,7 @@ private fun DrawScope.drawSandSettings() {
     }
     drawCircle(Color(0xFF2E3037), radius = s * 0.07f, center = c)
 }
-
+ 
 private fun DrawScope.drawSandGallery() {
     val s = size.minDimension
     val c = center
@@ -176,7 +176,7 @@ private fun DrawScope.drawSandGallery() {
         )
     }
 }
-
+ 
 private fun DrawScope.drawSandPlay() {
     val s = size.minDimension
     drawRect(Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFECEFF5))))
@@ -186,19 +186,19 @@ private fun DrawScope.drawSandPlay() {
     val px = 0.47f * s; val py = 0.50f * s
     val tx = 0.564f * s; val ty = 0.365f * s
     val ux = 0.564f * s; val uy = 0.635f * s
-    fun poly(color: Color, vararg pts: Offset) {
+    fun poly(color: Color, pts: List<Offset>) {
         val p = Path()
         p.moveTo(pts[0].x, pts[0].y)
         for (i in 1 until pts.size) p.lineTo(pts[i].x, pts[i].y)
         p.close()
         drawPath(p, color)
     }
-    poly(Color(0xFF1E88F5), Offset(ax, ay), Offset(px, py), Offset(bx, by))
-    poly(Color(0xFF00D26A), Offset(ax, ay), Offset(tx, ty), Offset(px, py))
-    poly(Color(0xFFFF3D4F), Offset(bx, by), Offset(ux, uy), Offset(px, py))
-    poly(Color(0xFFFFC800), Offset(tx, ty), Offset(cx, cy), Offset(ux, uy), Offset(px, py))
+    poly(Color(0xFF1E88F5), listOf(Offset(ax, ay), Offset(px, py), Offset(bx, by)))
+    poly(Color(0xFF00D26A), listOf(Offset(ax, ay), Offset(tx, ty), Offset(px, py)))
+    poly(Color(0xFFFF3D4F), listOf(Offset(bx, by), Offset(ux, uy), Offset(px, py)))
+    poly(Color(0xFFFFC800), listOf(Offset(tx, ty), Offset(cx, cy), Offset(ux, uy), Offset(px, py)))
 }
-
+ 
 private fun DrawScope.drawSandCamera() {
     val s = size.minDimension
     drawRect(Brush.verticalGradient(listOf(Color(0xFFEDEEF2), Color(0xFFB4B6BE))))
@@ -210,7 +210,7 @@ private fun DrawScope.drawSandCamera() {
     drawCircle(Color(0xFF4A4C55), radius = 0.095f * s, center = lens)
     drawCircle(Color(0xFFB8BAC4), radius = 0.022f * s, center = Offset(0.72f * s, 0.38f * s))
 }
-
+ 
 private fun DrawScope.drawSandMessages() {
     val s = size.minDimension
     drawRect(Brush.verticalGradient(listOf(Color(0xFF3BA3FF), Color(0xFF0A62E8))))
@@ -226,7 +226,7 @@ private fun DrawScope.drawSandMessages() {
         drawCircle(dot, radius = 0.045f * s, center = Offset(x * s, 0.47f * s))
     }
 }
-
+ 
 private fun DrawScope.drawSandPlanet() {
     val s = size.minDimension
     val c = center
@@ -245,7 +245,7 @@ private fun DrawScope.drawSandPlanet() {
         )
     }
 }
-
+ 
 private fun DrawScope.drawSandCompass() {
     val s = size.minDimension
     val c = center
@@ -272,7 +272,7 @@ private fun DrawScope.drawSandCompass() {
     }
     drawCircle(Color.White, radius = 0.018f * s, center = c)
 }
-
+ 
 private fun DrawScope.drawSandYoutube() {
     val s = size.minDimension
     drawRect(Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFEDEFF4))))
@@ -284,3 +284,4 @@ private fun DrawScope.drawSandYoutube() {
     tri.close()
     drawPath(tri, Color.White)
 }
+ 
