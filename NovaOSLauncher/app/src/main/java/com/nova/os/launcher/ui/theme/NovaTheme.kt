@@ -65,6 +65,27 @@ val AccentPalette = listOf(
 class WallpaperPreset(val id: String, val name: String, val dark: List<Color>, val light: List<Color>)
  
 val Wallpapers = listOf(
+    // SAND 물결 배경 4종 (Wallpaper.kt의 WaveBackground가 그린다). 미리보기용 팔레트.
+    WallpaperPreset(
+        "wave_system", "SAND 시스템",
+        listOf(Color(0xFF040A1C), Color(0xFF1B3F94), Color(0xFF2650B8), Color(0xFF7B96FF)),
+        listOf(Color(0xFFEDEFFC), Color(0xFFB5C0F4), Color(0xFFFFFFFF), Color(0xFF9FB0F2)),
+    ),
+    WallpaperPreset(
+        "wave_light", "SAND 라이트",
+        listOf(Color(0xFFEDEFFC), Color(0xFFB5C0F4), Color(0xFFFFFFFF), Color(0xFF9FB0F2)),
+        listOf(Color(0xFFEDEFFC), Color(0xFFB5C0F4), Color(0xFFFFFFFF), Color(0xFF9FB0F2)),
+    ),
+    WallpaperPreset(
+        "wave_dark", "SAND 다크",
+        listOf(Color(0xFF040A1C), Color(0xFF1B3F94), Color(0xFF2650B8), Color(0xFF7B96FF)),
+        listOf(Color(0xFF040A1C), Color(0xFF1B3F94), Color(0xFF2650B8), Color(0xFF7B96FF)),
+    ),
+    WallpaperPreset(
+        "wave_blue", "SAND 블루",
+        listOf(Color(0xFF1D63F5), Color(0xFF5E9BFF), Color(0xFF1648E0), Color(0xFF8CBBFF)),
+        listOf(Color(0xFF1D63F5), Color(0xFF5E9BFF), Color(0xFF1648E0), Color(0xFF8CBBFF)),
+    ),
     WallpaperPreset(
         "aurora", "오로라",
         listOf(Color(0xFF070B1A), Color(0xFF5B6CFF), Color(0xFF9B5CFF), Color(0xFF18C8D8)),
@@ -175,10 +196,15 @@ private fun buildScheme(c: NovaColors): ColorScheme =
 @Composable
 fun NovaTheme(settings: NovaSettings, content: @Composable () -> Unit) {
     val systemDark = isSystemInDarkTheme()
-    val dark = when (settings.themeMode) {
-        ThemeMode.SYSTEM -> systemDark
-        ThemeMode.LIGHT -> false
-        ThemeMode.DARK -> true
+    // SAND 라이트/다크/블루 배경을 고르면 글자색도 그 배경에 맞춰 고정(블루는 다크 계열 글자).
+    val dark = when (settings.wallpaperId) {
+        "wave_light" -> false
+        "wave_dark", "wave_blue" -> true
+        else -> when (settings.themeMode) {
+            ThemeMode.SYSTEM -> systemDark
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK -> true
+        }
     }
     val base = AccentPalette[settings.accentIndex.coerceIn(0, AccentPalette.lastIndex)].color
     val colors = remember(dark, base) { buildColors(dark, base) }
@@ -194,4 +220,5 @@ fun NovaTheme(settings: NovaSettings, content: @Composable () -> Unit) {
         MaterialTheme(colorScheme = scheme, typography = Typography(), content = content)
     }
 }
+ 
  
