@@ -38,7 +38,7 @@ enum class SortMode(val label: String) {
 data class NovaSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accentIndex: Int = 0,
-    val wallpaperId: String = "wave_system",
+    val wallpaperId: String = "wave_light",
     val animatedWallpaper: Boolean = true,
     val iconSizeDp: Int = 64,
     val showLabels: Boolean = true,
