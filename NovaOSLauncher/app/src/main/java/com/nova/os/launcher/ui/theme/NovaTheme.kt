@@ -1,6 +1,7 @@
 package com.nova.os.launcher.ui.theme
  
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.tween
@@ -42,11 +43,15 @@ data class NovaColors(
 }
  
 @Immutable
-class NovaMotion(val enabled: Boolean, val speed: Float) {
-    fun ms(base: Int): Int =
-        if (!enabled) 0 else (base / speed.coerceIn(0.3f, 3f)).toInt().coerceAtLeast(1)
+/** 끝에서 길게 감속하는 부드러운 곡선(easeOutQuint 계열). 모든 화면 전환의 기본값. */
+val SandEase: Easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
  
-    fun <T> spec(base: Int, easing: Easing = FastOutSlowInEasing): TweenSpec<T> =
+class NovaMotion(val enabled: Boolean, val speed: Float) {
+    // 기본 길이를 35% 늘려 모든 모션이 더 느긋하고 부드럽게 보이게 한다.
+    fun ms(base: Int): Int =
+        if (!enabled) 0 else (base * 1.35f / speed.coerceIn(0.3f, 3f)).toInt().coerceAtLeast(1)
+ 
+    fun <T> spec(base: Int, easing: Easing = SandEase): TweenSpec<T> =
         tween(durationMillis = ms(base), easing = easing)
 }
  
@@ -120,7 +125,7 @@ val LocalNovaMotion = staticCompositionLocalOf { NovaMotion(enabled = true, spee
 /** SAND 블루 테마가 선택돼 있는지. 유리 질감을 파랗게 바꾸는 데 쓴다. */
 val LocalNovaBlue = staticCompositionLocalOf { false }
  
-private fun buildColors(dark: Boolean, base: Color, blue: Boolean): NovaColors =
+private fun buildColors(dark: Boolean, base: Color, blue: Boolean, tint: Color?): NovaColors =
     if (dark) {
         NovaColors(
             isDark = true,
@@ -131,7 +136,8 @@ private fun buildColors(dark: Boolean, base: Color, blue: Boolean): NovaColors =
             glass = if (blue) Color(0x33FFFFFF) else Color(0x1FFFFFFF),
             glassStrong = if (blue) Color(0x4DFFFFFF) else Color(0x33FFFFFF),
             glassBorder = Color(0x40FFFFFF),
-            sheet = if (blue) Color(0xF01546C8) else Color(0xE60A0C16),
+            // 현재 배경 색을 반투명하게 얹은 유리 시트(뒤의 흐려진 배경이 비친다)
+            sheet = tint?.copy(alpha = 0.62f) ?: Color(0xE60A0C16),
             panel = if (blue) Color(0xFF1A4FD0) else Color(0xFF14172B),
             danger = Color(0xFFFF6B6B),
             good = Color(0xFF4ADE80),
@@ -147,7 +153,7 @@ private fun buildColors(dark: Boolean, base: Color, blue: Boolean): NovaColors =
             glass = Color(0x99FFFFFF),
             glassStrong = Color(0xCCFFFFFF),
             glassBorder = Color(0xCCFFFFFF),
-            sheet = Color(0xEBF4F5FA),
+            sheet = tint?.copy(alpha = 0.66f) ?: Color(0xEBF4F5FA),
             panel = Color(0xFFF7F8FC),
             danger = Color(0xFFDC2626),
             good = Color(0xFF16A34A),
@@ -205,7 +211,12 @@ fun NovaTheme(settings: NovaSettings, content: @Composable () -> Unit) {
     }
     val base = AccentPalette[settings.accentIndex.coerceIn(0, AccentPalette.lastIndex)].color
     val blue = settings.wallpaperId == "wave_blue"
-    val colors = remember(dark, base, blue) { buildColors(dark, base, blue) }
+    // 현재 배경화면의 기본 색(사진 배경은 제외). 모든 앱 화면의 유리 시트 색으로 쓴다.
+    val tint: Color? = remember(settings.wallpaperId, dark) {
+        if (settings.wallpaperId == "custom") null
+        else wallpaperById(settings.wallpaperId).let { if (dark) it.dark[0] else it.light[0] }
+    }
+    val colors = remember(dark, base, blue, tint) { buildColors(dark, base, blue, tint) }
     val scheme = remember(colors, blue) { buildScheme(colors, blue) }
     val motion = remember(settings.animationsEnabled, settings.animationSpeed) {
         NovaMotion(settings.animationsEnabled, settings.animationSpeed)
