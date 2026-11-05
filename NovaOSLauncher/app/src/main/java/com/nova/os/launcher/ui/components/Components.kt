@@ -1,7 +1,7 @@
 @file:OptIn(ExperimentalFoundationApi::class)
-
+ 
 package com.nova.os.launcher.ui.components
-
+ 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -61,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -81,10 +82,10 @@ import com.nova.os.launcher.data.AppInfo
 import com.nova.os.launcher.system.SystemActions
 import com.nova.os.launcher.ui.theme.LocalNovaColors
 import com.nova.os.launcher.ui.theme.LocalNovaMotion
-
+ 
 /** Swallows touches so nothing underneath a full-screen layer receives them. */
 fun Modifier.blockTouches(): Modifier = this.pointerInput(Unit) { detectTapGestures { } }
-
+ 
 /** Press feedback (scale) without a ripple, used for icons, keys and tiles. */
 @Composable
 fun Pressable(
@@ -118,7 +119,7 @@ fun Pressable(
         content = content,
     )
 }
-
+ 
 /** Frosted-glass surface. */
 @Composable
 fun GlassCard(
@@ -140,7 +141,7 @@ fun GlassCard(
     }
     Box(m, content = content)
 }
-
+ 
 @Composable
 fun CircleIconButton(
     icon: ImageVector,
@@ -167,7 +168,7 @@ fun CircleIconButton(
         )
     }
 }
-
+ 
 @Composable
 fun IconBadge(icon: ImageVector, modifier: Modifier = Modifier, size: Dp = 38.dp) {
     val c = LocalNovaColors.current
@@ -178,7 +179,7 @@ fun IconBadge(icon: ImageVector, modifier: Modifier = Modifier, size: Dp = 38.dp
         Icon(icon, null, Modifier.size(size * 0.55f), tint = c.accent)
     }
 }
-
+ 
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     val c = LocalNovaColors.current
@@ -191,7 +192,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
         color = c.textSecondary,
     )
 }
-
+ 
 @Composable
 fun SettingRow(
     icon: ImageVector,
@@ -220,14 +221,14 @@ fun SettingRow(
         trailing()
     }
 }
-
+ 
 @Composable
 fun SwitchRow(icon: ImageVector, title: String, subtitle: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) {
     SettingRow(icon, title, subtitle, onClick = { onChange(!checked) }) {
         Switch(checked = checked, onCheckedChange = onChange)
     }
 }
-
+ 
 @Composable
 fun NovaSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = LocalNovaColors.current
@@ -267,7 +268,7 @@ fun NovaSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit,
         }
     }
 }
-
+ 
 @Composable
 fun NovaStepper(value: Int, range: IntRange, onChange: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -282,7 +283,7 @@ fun NovaStepper(value: Int, range: IntRange, onChange: (Int) -> Unit) {
         CircleIconButton(Icons.Rounded.Add, "늘리기", { if (value < range.last) onChange(value + 1) }, size = 36.dp)
     }
 }
-
+ 
 /** iOS-style horizontal pill slider (brightness / volume). */
 @Composable
 fun PillSlider(value: Float, onValueChange: (Float) -> Unit, icon: ImageVector, modifier: Modifier = Modifier) {
@@ -320,7 +321,7 @@ fun PillSlider(value: Float, onValueChange: (Float) -> Unit, icon: ImageVector, 
         )
     }
 }
-
+ 
 /** Standard frame for full-screen tools: glass sheet, back button, title. */
 @Composable
 fun ToolScaffold(
@@ -352,7 +353,7 @@ fun ToolScaffold(
         content()
     }
 }
-
+ 
 /** App icon with label, press animation and long-press context menu. */
 @Composable
 fun AppIconCell(
@@ -361,6 +362,7 @@ fun AppIconCell(
     iconSize: Dp,
     showLabel: Boolean,
     modifier: Modifier = Modifier,
+    dock: Boolean = false,
 ) {
     val c = LocalNovaColors.current
     var menuOpen by remember { mutableStateOf(false) }
@@ -370,12 +372,23 @@ fun AppIconCell(
                 Modifier.padding(horizontal = 2.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Image(
-                    bitmap = app.icon,
-                    contentDescription = app.label,
-                    modifier = Modifier.size(iconSize),
-                    filterQuality = FilterQuality.Medium,
-                )
+                val sandKind = remember(app.packageName, app.label) { sandKindOf(app) }
+                if (sandKind != null) {
+                    // 시안 기본 앱: 시안풍으로 직접 그린 아이콘
+                    SandAppIcon(sandKind, iconSize, dock = dock)
+                } else {
+                    // 그 외 앱: 실제 아이콘을 유지하고 둥근 사각형 + 그림자만 입힘
+                    val iconShape = RoundedCornerShape(iconSize * 0.27f)
+                    Image(
+                        bitmap = app.icon,
+                        contentDescription = app.label,
+                        modifier = Modifier
+                            .size(iconSize)
+                            .shadow(4.dp, iconShape, clip = false, ambientColor = Color(0x33000000), spotColor = Color(0x40000000))
+                            .clip(iconShape),
+                        filterQuality = FilterQuality.Medium,
+                    )
+                }
                 if (showLabel) {
                     Text(
                         app.label,
@@ -394,7 +407,7 @@ fun AppIconCell(
         AppContextMenu(app, vm, expanded = menuOpen, onDismiss = { menuOpen = false })
     }
 }
-
+ 
 @Composable
 fun AppContextMenu(app: AppInfo, vm: NovaViewModel, expanded: Boolean, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -431,7 +444,7 @@ fun AppContextMenu(app: AppInfo, vm: NovaViewModel, expanded: Boolean, onDismiss
         }
     }
 }
-
+ 
 /** Small helper used by several screens for a tinted pill label. */
 @Composable
 fun InfoPill(text: String, modifier: Modifier = Modifier) {
@@ -443,3 +456,4 @@ fun InfoPill(text: String, modifier: Modifier = Modifier) {
         Text(text, fontSize = 12.sp, color = c.textSecondary)
     }
 }
+ 
