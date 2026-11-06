@@ -1,14 +1,14 @@
 package com.nova.os.launcher.data
-
+ 
 import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONObject
-
+ 
 /** Persists [NovaSettings] and launch counters in SharedPreferences. */
 class SettingsRepository(context: Context) {
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences("nova_settings", Context.MODE_PRIVATE)
-
+ 
     fun load(): NovaSettings {
         val d = NovaSettings()
         return NovaSettings(
@@ -35,9 +35,10 @@ class SettingsRepository(context: Context) {
             dockApps = readList("dockApps"),
             hidden = readList("hidden").toSet(),
             setupDone = prefs.getBoolean("setupDone", d.setupDone),
+            layoutVersion = prefs.getInt("layoutVersion", d.layoutVersion),
         )
     }
-
+ 
     fun save(s: NovaSettings) {
         prefs.edit()
             .putString("themeMode", s.themeMode.name)
@@ -63,26 +64,28 @@ class SettingsRepository(context: Context) {
             .putString("dockApps", s.dockApps.joinToString("|"))
             .putString("hidden", s.hidden.joinToString("|"))
             .putBoolean("setupDone", s.setupDone)
+            .putInt("layoutVersion", s.layoutVersion)
             .apply()
     }
-
+ 
     fun loadLaunchCounts(): Map<String, Int> = try {
         val o = JSONObject(prefs.getString("launchCounts", "{}").orEmpty())
         o.keys().asSequence().associateWith { o.optInt(it, 0) }
     } catch (e: Exception) {
         emptyMap()
     }
-
+ 
     fun saveLaunchCounts(counts: Map<String, Int>) {
         prefs.edit().putString("launchCounts", JSONObject(counts).toString()).apply()
     }
-
+ 
     private fun readList(key: String): List<String> =
         prefs.getString(key, "").orEmpty().split('|').filter { it.isNotBlank() }
-
+ 
     private inline fun <reified T : Enum<T>> enumOf(name: String?, default: T): T = try {
         if (name == null) default else enumValueOf<T>(name)
     } catch (e: IllegalArgumentException) {
         default
     }
 }
+ 
