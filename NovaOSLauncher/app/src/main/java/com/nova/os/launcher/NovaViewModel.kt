@@ -1,4 +1,3 @@
-
 package com.nova.os.launcher
 
 import android.app.Application
@@ -45,6 +44,7 @@ import com.nova.os.launcher.data.WeatherRepository
 import com.nova.os.launcher.data.WeatherState
 import com.nova.os.launcher.data.WeatherStatus
 import com.nova.os.launcher.system.TorchController
+import com.nova.os.launcher.ui.components.sandLayoutOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -279,16 +279,75 @@ class NovaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * SAND 콘셉트 보드 배치(메시지, 캘린더, 갤러리, 카메라, 메일, 시계, 지도, 날씨, 메모, 미리 알림,
+     * Play 스토어, 설정 / 독: 전화, 인터넷, 음악, 설정)에 맞는 설치 앱을 고른다.
+     * 보드의 앱이 3개도 안 잡히면(다른 제조사 등) null을 돌려줘서 기존 배치를 건드리지 않는다.
+     */
+    private fun sandSelection(apps: List<AppInfo>, oldFavorites: List<String>): Pair<List<String>, List<String>>? {
+        val layout = sandLayoutOf(apps)
+        if (layout.favorites.size < 3) return null
+        val installed = apps.map { it.packageName }.toSet()
+        val dock = (layout.dock + AppRepository.resolveDefaultDock(app, installed)).distinct().take(MAX_DOCK)
+        val used = (layout.favorites + dock).toSet()
+        // 보드에 없는 칸은 기존 즐겨찾기 → 사용자 앱 → 시스템 앱 순으로 채운다.
+        val keep = oldFavorites.filter { it in installed && it !in used }
+        val rest = apps.filter { it.packageName !in used && it.packageName !in keep }.distinctBy { it.packageName }
+        val sorted = AppRepository.sortApps(rest, SortMode.NAME_ASC, emptyMap())
+        val fill = (sorted.filter { !it.isSystem } + sorted.filter { it.isSystem }).map { it.packageName }
+        val favorites = (layout.favorites + keep + fill).distinct().take(MAX_FAVORITES)
+        return favorites to dock
+    }
+
     private fun ensureDefaults(apps: List<AppInfo>) {
+        if (apps.isEmpty()) return
         val s = _settings.value
-        if (s.setupDone || apps.isEmpty()) return
+        if (s.setupDone && s.layoutVersion >= SAND_LAYOUT_VERSION) return
+
+        // 첫 실행과 업데이트 직후(한 번만): SAND 기본 배치 적용
+        val sand = sandSelection(apps, s.favorites)
+        if (sand != null) {
+            update {
+                it.copy(
+                    favorites = sand.first,
+                    dockApps = sand.second,
+                    setupDone = true,
+                    layoutVersion = SAND_LAYOUT_VERSION,
+                )
+            }
+            return
+        }
+        if (s.setupDone) {
+            update { it.copy(layoutVersion = SAND_LAYOUT_VERSION) }
+            return
+        }
+
         val installed = apps.map { it.packageName }.toSet()
         val dock = AppRepository.resolveDefaultDock(app, installed).take(4)
         val rest = apps.filter { it.packageName !in dock }.distinctBy { it.packageName }
         val sorted = AppRepository.sortApps(rest, SortMode.NAME_ASC, emptyMap())
         val favorites = (sorted.filter { !it.isSystem } + sorted.filter { it.isSystem })
             .take(8).map { it.packageName }
-        update { it.copy(dockApps = dock, favorites = favorites, setupDone = true) }
+        update { it.copy(dockApps = dock, favorites = favorites, setupDone = true, layoutVersion = SAND_LAYOUT_VERSION) }
+    }
+
+    /** 홈 화면 길게 누르기 메뉴에서 호출: 홈 앱 배치를 SAND 기본 배치로 다시 맞춘다. */
+    fun applySandLayout() {
+        val apps = _apps.value
+        val sand = sandSelection(apps, _settings.value.favorites)
+        if (sand == null) {
+            toast("기본 배치에 맞는 앱을 찾지 못했어요")
+            return
+        }
+        update {
+            it.copy(
+                favorites = sand.first,
+                dockApps = sand.second,
+                setupDone = true,
+                layoutVersion = SAND_LAYOUT_VERSION,
+            )
+        }
+        toast("SAND 기본 배치를 적용했어요")
     }
 
     fun launchApp(info: AppInfo) {
@@ -581,5 +640,6 @@ class NovaViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
         const val MAX_FAVORITES = 20
         const val MAX_DOCK = 4
+        const val SAND_LAYOUT_VERSION = 1
     }
 }
