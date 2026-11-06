@@ -148,16 +148,11 @@ fun HomeScreen(vm: NovaViewModel) {
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            // 시간·상태 아이콘·배터리·검색창을 하나의 유리 패널로 묶음.
-            // 검색창은 설정(showSearchBar)이 켜져 있으면 첫 페이지에서 보이고,
-            // 옆 페이지로 넘기는 만큼 서서히 투명해지며 패널이 접힌다.
-            HomeTopBar(
+            // 콘셉트 보드: 시간 · 상태 아이콘 · 배터리가 한 줄. 검색은 돋보기 버튼(vm.openSearch)으로 연결.
+            HomeStatusRow(
                 battery = battery,
                 use24h = settings.use24h,
                 showSearch = settings.showSearchBar,
-                searchProgress = {
-                    (1f - (pagerState.currentPage + pagerState.currentPageOffsetFraction)).coerceIn(0f, 1f)
-                },
                 onSearch = { vm.openSearch() },
                 onBattery = { vm.open(Overlay.Control) }
             )
@@ -207,11 +202,10 @@ fun HomeScreen(vm: NovaViewModel) {
 }
  
 @Composable
-private fun HomeTopBar(
+private fun HomeStatusRow(
     battery: BatteryState,
     use24h: Boolean,
     showSearch: Boolean,
-    searchProgress: () -> Float,
     onSearch: () -> Unit,
     onBattery: () -> Unit
 ) {
@@ -220,75 +214,51 @@ private fun HomeTopBar(
     val timeText = remember(now, use24h) {
         now.format(DateTimeFormatter.ofPattern(if (use24h) "H:mm" else "h:mm", Locale.getDefault()))
     }
-    // 시안: 둥근 유리 패널 하나 안에 시간 + 상태 아이콘 + 배터리, 그 아래 검색창.
-    Column(
+    Row(
         Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp)
-            .homeGlass(RoundedCornerShape(50.dp))
-            .padding(
-                start = 17.dp,
-                end = 17.dp,
-                top = 24.dp,
-                bottom = 18.dp
-            )
+            .padding(start = 28.dp, end = 22.dp, top = 12.dp)
+            .height(34.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 13.dp, end = 6.dp)
-                .height(28.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                timeText,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = AuroraWhite
-            )
- 
-            Spacer(Modifier.weight(1f))
- 
-            Pressable(
-                Modifier.clip(CircleShape),
-                onClick = onBattery
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp)
-                ) {
-                    HomeStatusIcons(status, AuroraWhite)
-                    HomeBattery(
-                        percent = battery.percent,
-                        charging = battery.charging,
-                        valid = battery.valid,
-                        tint = AuroraWhite
-                    )
-                }
+        Text(
+            timeText,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = AuroraWhite
+        )
+
+        Spacer(Modifier.weight(1f))
+
+        if (showSearch) {
+            Pressable(Modifier.clip(CircleShape), onClick = onSearch) {
+                Icon(
+                    Icons.Rounded.Search,
+                    contentDescription = "검색",
+                    modifier = Modifier.padding(8.dp).size(20.dp),
+                    tint = AuroraWhite
+                )
             }
         }
- 
-        if (showSearch) {
-            // 페이지를 넘기는 정도(searchProgress)에 맞춰 높이와 투명도가 같이 줄어든다.
-            Column(
-                Modifier
-                    .layout { measurable, constraints ->
-                        val p = measurable.measure(constraints)
-                        val h = (p.height * searchProgress()).roundToInt()
-                        layout(p.width, h) { p.place(0, 0) }
-                    }
-                    .graphicsLayer { alpha = searchProgress() }
-                    .clipToBounds()
+
+        Pressable(Modifier.clip(CircleShape), onClick = onBattery) {
+            Row(
+                Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                Spacer(Modifier.height(30.dp))
-                SearchPill(onSearch)
-                Spacer(Modifier.height(7.dp))
+                HomeStatusIcons(status, AuroraWhite)
+                HomeBattery(
+                    percent = battery.percent,
+                    charging = battery.charging,
+                    valid = battery.valid,
+                    tint = AuroraWhite
+                )
             }
         }
     }
 }
- 
+
 /** 시안의 가로형 배터리 아이콘. 잔량만큼 채워지고 충전 중이면 초록색. */
 @Composable
 private fun HomeBattery(percent: Int, charging: Boolean, valid: Boolean, tint: Color) {
@@ -323,7 +293,7 @@ private fun HomeBattery(percent: Int, charging: Boolean, valid: Boolean, tint: C
 private fun MainPage(vm: NovaViewModel, settings: NovaSettings, onLongPress: () -> Unit) {
     val favorites by vm.favoriteApps.collectAsState()
     val weather by vm.weather.collectAsState()
- 
+
     Column(
         Modifier
             .fillMaxSize()
@@ -331,19 +301,138 @@ private fun MainPage(vm: NovaViewModel, settings: NovaSettings, onLongPress: () 
                 detectTapGestures(onLongPress = { onLongPress() })
             }
     ) {
-        if (settings.showWeather) {
-            // 시안: 날씨 카드는 상단 패널보다 12dp 안쪽, 패널과 거의 붙어 있음
-            Spacer(Modifier.height(4.dp))
-            WeatherCard(weather, Modifier.padding(horizontal = 28.dp)) { vm.refreshWeather(force = true) }
-            Spacer(Modifier.height(43.dp))
-        } else {
-            Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(10.dp))
+
+        // 콘셉트 보드: 큰 시계 위젯(왼쪽) + 날씨 위젯(오른쪽)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 26.dp)
+                .height(172.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            HomeClockCard(
+                use24h = settings.use24h,
+                modifier = Modifier.weight(if (settings.showWeather) 1.19f else 1f).fillMaxHeight()
+            ) { vm.open(Overlay.Clock) }
+            if (settings.showWeather) {
+                HomeWeatherCard(
+                    weather = weather,
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                ) { vm.refreshWeather(force = true) }
+            }
         }
- 
+
+        Spacer(Modifier.height(30.dp))
+
         FavoritesGrid(vm, favorites, settings)
     }
 }
- 
+
+/** 보드의 큰 시계 위젯: 시각 + "4월 25일 금요일". 탭하면 시계 앱 화면. */
+@Composable
+private fun HomeClockCard(use24h: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val now by rememberMinuteClock()
+    val timeText = remember(now, use24h) {
+        now.format(DateTimeFormatter.ofPattern(if (use24h) "H:mm" else "h:mm", Locale.getDefault()))
+    }
+    val dateText = remember(now) {
+        now.format(DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN))
+    }
+    Pressable(modifier.homeGlass(RoundedCornerShape(30.dp)), onClick = onClick) {
+        Column(
+            Modifier.align(Alignment.Center).padding(horizontal = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                timeText,
+                fontSize = 52.sp,
+                lineHeight = 58.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = (-1).sp,
+                color = AuroraWhite,
+                maxLines = 1,
+                softWrap = false
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                dateText,
+                fontSize = 14.sp,
+                color = AuroraMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/** 보드의 날씨 위젯: 해 아이콘, 큰 온도, 상태, 지역. 탭하면 새로고침. */
+@Composable
+private fun HomeWeatherCard(weather: WeatherState, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Pressable(modifier.homeGlass(RoundedCornerShape(30.dp)), onClick = onClick) {
+        when (weather.status) {
+            WeatherStatus.READY -> {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 18.dp)
+                ) {
+                    if (weather.emoji.startsWith("\u2600")) {
+                        HomeSun(Modifier.size(36.dp))
+                    } else {
+                        Text(weather.emoji, fontSize = 28.sp)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        "${weather.tempC}°",
+                        fontSize = 40.sp,
+                        lineHeight = 44.sp,
+                        fontWeight = FontWeight.Light,
+                        color = AuroraWhite
+                    )
+                    Text(
+                        weather.description,
+                        fontSize = 14.sp,
+                        color = AuroraMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (weather.place.isNotBlank()) {
+                        Text(
+                            weather.place,
+                            fontSize = 14.sp,
+                            color = AuroraMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            WeatherStatus.LOADING -> {
+                Column(
+                    Modifier.align(Alignment.Center).padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("🌡️", fontSize = 28.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text("불러오는 중…", color = AuroraMuted, fontSize = 13.sp)
+                }
+            }
+            WeatherStatus.ERROR -> {
+                Column(
+                    Modifier.align(Alignment.Center).padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("☁️", fontSize = 28.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text("날씨를 가져오지\n못했어요", color = AuroraWhite, fontSize = 12.sp, textAlign = TextAlign.Center)
+                    Text("탭해서 다시 시도", color = AuroraMuted, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun FavoritesGrid(vm: NovaViewModel, apps: List<AppInfo>, settings: NovaSettings) {
     val c = LocalNovaColors.current
@@ -362,14 +451,14 @@ private fun FavoritesGrid(vm: NovaViewModel, apps: List<AppInfo>, settings: Nova
         return
     }
  
-    // 시안 기본 앱(설정, 갤러리, Play 스토어, 카메라, 전화, 메시지, 인터넷, YouTube)을 앞에 두고
-    // 나머지는 기존 즐겨찾기 순서를 유지. 첫 홈 화면에는 두 줄을 배치.
+    // 콘셉트 보드의 앱(메시지, 캘린더, 사진, 카메라 ...)을 앞에 두고
+    // 나머지는 기존 즐겨찾기 순서를 유지. 첫 홈 화면에는 세 줄을 배치.
     val ordered = remember(apps) { apps.sandOrdered(SandDefaultFavorites) }
     Column(
         Modifier.padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(30.dp)
+        verticalArrangement = Arrangement.spacedBy(26.dp)
     ) {
-        ordered.take(cols * 2).chunked(cols).forEach { row ->
+        ordered.take(cols * 3).chunked(cols).forEach { row ->
             Row(Modifier.fillMaxWidth()) {
                 row.forEach { app ->
                     AppIconCell(
@@ -619,192 +708,18 @@ private fun ClockWidget(settings: NovaSettings) {
 }
  
 @Composable
-private fun WeatherCard(weather: WeatherState, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Pressable(
-        modifier
-            .fillMaxWidth()
-            .homeGlass(
-                RoundedCornerShape(46.dp),
-                top = if (LocalNovaBlue.current) Color(0x66A9CCFF)
-                else if (LocalNovaColors.current.isDark) Color(0x66627A9E) else Color(0x8C7F98E0),
-                bottom = if (LocalNovaBlue.current) Color(0x333B78F0)
-                else if (LocalNovaColors.current.isDark) Color(0x33324A6B) else Color(0x5992A9E8)
-            ),
-        onClick = onClick
-    ) {
-        when (weather.status) {
-            WeatherStatus.READY -> {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = 27.dp, end = 22.dp, top = 24.dp, bottom = 19.dp)
-                ) {
-                    if (weather.place.isNotBlank()) {
-                        Row(
-                            Modifier.height(24.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                weather.place,
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = AuroraWhite,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.Rounded.LocationOn,
-                                contentDescription = null,
-                                modifier = Modifier.size(15.dp),
-                                tint = AuroraWhite
-                            )
-                        }
-                    } else {
-                        Spacer(Modifier.height(24.dp))
-                    }
-                    Text(
-                        "${weather.tempC}°",
-                        fontSize = 60.sp,
-                        lineHeight = 66.sp,
-                        fontWeight = FontWeight.Light,
-                        color = AuroraWhite
-                    )
-                    Spacer(Modifier.height(5.dp))
-                    Text(
-                        weather.description,
-                        fontSize = 17.sp,
-                        lineHeight = 22.sp,
-                        color = AuroraWhite,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        "최고 ${weather.high}° 최저 ${weather.low}°",
-                        fontSize = 17.sp,
-                        lineHeight = 22.sp,
-                        color = AuroraWhite
-                    )
-                }
-                if (weather.emoji.startsWith("\u2600")) {
-                    // 맑음: 시안처럼 직접 그린 해
-                    HomeSun(
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 36.dp, end = 24.dp)
-                            .size(64.dp)
-                    )
-                } else {
-                    Text(
-                        weather.emoji,
-                        fontSize = 52.sp,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 38.dp, end = 26.dp)
-                    )
-                }
-                Icon(
-                    Icons.Rounded.ChevronRight,
-                    contentDescription = null,
-                    tint = AuroraMuted,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 22.dp, bottom = 19.dp)
-                        .size(22.dp)
-                )
-            }
-            WeatherStatus.LOADING -> {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 27.dp, vertical = 34.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("🌡️", fontSize = 34.sp)
-                    Spacer(Modifier.width(14.dp))
-                    Text("날씨를 불러오는 중…", color = AuroraMuted, fontSize = 14.sp)
-                }
-            }
-            WeatherStatus.ERROR -> {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 27.dp, vertical = 34.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("☁️", fontSize = 34.sp)
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("날씨 정보를 가져오지 못했어요", color = AuroraWhite, fontSize = 13.sp)
-                        Text("탭해서 다시 시도", color = AuroraMuted, fontSize = 12.sp)
-                    }
-                    Icon(Icons.Rounded.Refresh, contentDescription = "새로고침", tint = AuroraMuted)
-                }
-            }
-        }
-    }
-}
- 
-@Composable
-private fun SearchPill(onClick: () -> Unit) {
-    Pressable(
-        Modifier
-            .fillMaxWidth()
-            .homeGlass(
-                CircleShape,
-                top = if (LocalNovaBlue.current) Color(0x66FFFFFF)
-                else if (LocalNovaColors.current.isDark) Color(0x30FFFFFF) else Color(0xB3FFFFFF),
-                bottom = if (LocalNovaBlue.current) Color(0x33FFFFFF)
-                else if (LocalNovaColors.current.isDark) Color(0x18FFFFFF) else Color(0x66FFFFFF)
-            ),
-        onClick = onClick
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(59.dp)
-                .padding(start = 18.dp, end = 22.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xEBFFFFFF))
-                    .border(1.dp, Color(0xFF202122), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "W",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif,
-                    color = Color(0xFF202122)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Text(
-                "위키백과 검색",
-                color = AuroraMuted,
-                fontSize = 17.sp,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(Icons.Rounded.Mic, contentDescription = "음성 검색", modifier = Modifier.size(22.dp), tint = AuroraMuted)
-        }
-    }
-}
- 
-@Composable
 private fun PageDots(count: Int, current: Int) {
     val dark = LocalNovaColors.current.isDark
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 14.dp),
+        Modifier.fillMaxWidth().padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         repeat(count) { i ->
             Box(
                 Modifier
-                    .padding(horizontal = 6.dp)
-                    .size(9.dp)
+                    .padding(horizontal = 5.dp)
+                    .size(8.dp)
                     .clip(CircleShape)
                     .background(
                         if (i == current) Color.White
@@ -819,17 +734,17 @@ private fun PageDots(count: Int, current: Int) {
 @Composable
 private fun Dock(vm: NovaViewModel, dockApps: List<AppInfo>, settings: NovaSettings) {
     val dockIcon = settings.iconSizeDp.coerceIn(40, 70).dp
-    // 시안 독 배치(전화, 메시지, 인터넷, 음악)를 앞에 두고 나머지는 기존 순서 유지
+    // 콘셉트 보드 독 배치(전화, 인터넷, 음악, 설정)를 앞에 두고 나머지는 기존 순서 유지
     val shown = remember(dockApps) { dockApps.sandOrdered(SandDefaultDock).take(4) }
     Box(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .homeGlass(RoundedCornerShape(50.dp))
+            .homeGlass(RoundedCornerShape(32.dp))
     ) {
         // 앱 4개를 홈 그리드 열과 같은 간격으로 배치
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 21.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             shown.forEach { app ->
@@ -954,6 +869,11 @@ private fun QuickMenu(vm: NovaViewModel, onDismiss: () -> Unit) {
                 onDismiss()
                 vm.open(Overlay.Apps)
             }
+            QuickMenuDivider()
+            QuickMenuItem(Icons.Rounded.Refresh, "SAND 기본 배치로 정리") {
+                onDismiss()
+                vm.applySandLayout()
+            }
         }
     }
 }
@@ -1012,4 +932,3 @@ private fun HomeSun(modifier: Modifier = Modifier) {
         }
     }
 }
- 
