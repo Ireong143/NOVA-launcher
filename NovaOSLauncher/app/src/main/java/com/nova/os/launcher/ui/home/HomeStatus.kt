@@ -76,7 +76,7 @@ private fun readSysStatus(context: Context): SysStatus {
             }
             if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) cell = true
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
         // ACCESS_NETWORK_STATE 권한이 없거나 조회 실패: 연결 아이콘은 꺼진 상태로 표시
     }
 
@@ -84,7 +84,7 @@ private fun readSysStatus(context: Context): SysStatus {
     try {
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         ringer = audio.ringerMode
-    } catch (_: Exception) {
+    } catch (e: Exception) {
     }
 
     var dnd = false
@@ -93,7 +93,7 @@ private fun readSysStatus(context: Context): SysStatus {
         val f = nm.currentInterruptionFilter
         dnd = f != NotificationManager.INTERRUPTION_FILTER_ALL &&
             f != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
-    } catch (_: Exception) {
+    } catch (e: Exception) {
     }
 
     return SysStatus(wifi, wifiLevel, cell, ringer, dnd)
@@ -127,7 +127,7 @@ fun rememberSysStatus(): State<SysStatus> {
         try {
             cm?.registerDefaultNetworkCallback(callback)
             registered = true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
         }
 
         val receiver = object : BroadcastReceiver() {
@@ -144,12 +144,12 @@ fun rememberSysStatus(): State<SysStatus> {
         onDispose {
             try {
                 app.unregisterReceiver(receiver)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
             }
             if (registered) {
                 try {
                     cm?.unregisterNetworkCallback(callback)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
                 }
             }
         }
