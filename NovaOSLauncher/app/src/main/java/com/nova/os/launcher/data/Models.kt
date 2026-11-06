@@ -59,6 +59,8 @@ data class NovaSettings(
     val dockApps: List<String> = emptyList(),
     val hidden: Set<String> = emptySet(),
     val setupDone: Boolean = false,
+    /** 홈 기본 배치 버전. 0이면 아직 SAND 기본 배치를 적용하지 않은 상태. */
+    val layoutVersion: Int = 0,
 )
  
 @Immutable
@@ -126,4 +128,5 @@ data class BatteryState(
     val health: String = "",
     val valid: Boolean = false,
 )
+ 
  
