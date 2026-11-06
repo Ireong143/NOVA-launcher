@@ -3,7 +3,9 @@ package com.nova.os.launcher.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,7 +13,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +30,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nova.os.launcher.data.AppInfo
@@ -34,7 +40,10 @@ import kotlin.math.cos
 import kotlin.math.sin
  
 /** 시안에 나오는 기본 앱 종류. 설치된 앱과 매칭되면 시안풍으로 직접 그린 아이콘을 쓴다. */
-enum class SandKind { SETTINGS, GALLERY, PLAY, CAMERA, PHONE, MESSAGES, INTERNET, YOUTUBE, MUSIC }
+enum class SandKind {
+    SETTINGS, GALLERY, PLAY, CAMERA, PHONE, MESSAGES, INTERNET, YOUTUBE, MUSIC,
+    CALENDAR, MAIL, CLOCK, MAPS, WEATHER, NOTES, REMINDERS,
+}
  
 private class SandSpec(val kind: SandKind, val packages: Set<String>, val labels: List<String>)
  
@@ -60,6 +69,33 @@ private val SandSpecs = listOf(
         setOf("com.sec.android.app.music", "com.google.android.apps.youtube.music"),
         listOf("음악", "Music", "YouTube Music")
     ),
+    SandSpec(
+        SandKind.CALENDAR,
+        setOf("com.samsung.android.calendar", "com.google.android.calendar", "com.android.calendar"),
+        listOf("캘린더", "Calendar", "Google 캘린더")
+    ),
+    SandSpec(
+        SandKind.MAIL,
+        setOf("com.samsung.android.email.provider", "com.google.android.gm"),
+        listOf("메일", "이메일", "Email", "Gmail")
+    ),
+    SandSpec(
+        SandKind.CLOCK,
+        setOf("com.sec.android.app.clockpackage", "com.google.android.deskclock", "com.android.deskclock"),
+        listOf("시계", "Clock")
+    ),
+    SandSpec(SandKind.MAPS, setOf("com.google.android.apps.maps"), listOf("지도", "Maps", "Google 지도")),
+    SandSpec(SandKind.WEATHER, setOf("com.sec.android.daemonservice"), listOf("날씨", "Weather")),
+    SandSpec(
+        SandKind.NOTES,
+        setOf("com.samsung.android.app.notes", "com.google.android.keep"),
+        listOf("메모", "Samsung Notes", "Keep 메모", "Notes")
+    ),
+    SandSpec(
+        SandKind.REMINDERS,
+        setOf("com.samsung.android.app.reminder", "com.google.android.apps.tasks"),
+        listOf("미리 알림", "리마인더", "Reminder", "Tasks", "할 일")
+    ),
 )
  
 fun sandKindOf(app: AppInfo): SandKind? {
@@ -71,15 +107,34 @@ fun sandKindOf(app: AppInfo): SandKind? {
     return null
 }
  
-/** 시안의 첫 홈 화면 배치(2줄) */
+/** 콘셉트 보드의 홈 화면 배치(4열 × 3줄) */
 val SandDefaultFavorites = listOf(
-    SandKind.SETTINGS, SandKind.GALLERY, SandKind.PLAY, SandKind.CAMERA,
-    SandKind.PHONE, SandKind.MESSAGES, SandKind.INTERNET, SandKind.YOUTUBE,
+    SandKind.MESSAGES, SandKind.CALENDAR, SandKind.GALLERY, SandKind.CAMERA,
+    SandKind.MAIL, SandKind.CLOCK, SandKind.MAPS, SandKind.WEATHER,
+    SandKind.NOTES, SandKind.REMINDERS, SandKind.PLAY, SandKind.SETTINGS,
 )
- 
-/** 시안의 독 배치 */
-val SandDefaultDock = listOf(SandKind.PHONE, SandKind.MESSAGES, SandKind.INTERNET, SandKind.MUSIC)
- 
+
+/** 콘셉트 보드의 독 배치 */
+val SandDefaultDock = listOf(SandKind.PHONE, SandKind.INTERNET, SandKind.MUSIC, SandKind.SETTINGS)
+
+class SandLayout(val favorites: List<String>, val dock: List<String>)
+
+private fun sandRank(app: AppInfo, kind: SandKind): Int {
+    val spec = SandSpecs.first { it.kind == kind }
+    val i = spec.packages.toList().indexOf(app.packageName)
+    return if (i >= 0) i else 100
+}
+
+/** 설치된 앱에서 보드 배치에 해당하는 앱의 패키지 이름을 순서대로 고른다(없는 앱은 건너뜀). */
+fun sandLayoutOf(apps: List<AppInfo>): SandLayout {
+    fun pick(kind: SandKind): String? =
+        apps.filter { sandKindOf(it) == kind }.minByOrNull { sandRank(it, kind) }?.packageName
+    return SandLayout(
+        favorites = SandDefaultFavorites.mapNotNull { pick(it) }.distinct(),
+        dock = SandDefaultDock.mapNotNull { pick(it) }.distinct(),
+    )
+}
+
 /** order에 있는 앱을 그 순서대로 앞에 두고, 나머지는 원래 순서를 유지한다(안정 정렬). */
 fun List<AppInfo>.sandOrdered(order: List<SandKind>): List<AppInfo> =
     sortedBy { app ->
@@ -110,6 +165,8 @@ fun SandAppIcon(kind: SandKind, size: Dp, modifier: Modifier = Modifier, dock: B
                 contentAlignment = Alignment.Center
             ) { Icon(Icons.Rounded.MusicNote, null, Modifier.size(size * 0.62f), tint = Color.White) }
  
+            SandKind.CALENDAR -> SandCalendarFace(size)
+
             else -> Canvas(Modifier.fillMaxSize()) {
                 when (kind) {
                     SandKind.SETTINGS -> drawSandSettings()
@@ -119,6 +176,12 @@ fun SandAppIcon(kind: SandKind, size: Dp, modifier: Modifier = Modifier, dock: B
                     SandKind.MESSAGES -> drawSandMessages()
                     SandKind.INTERNET -> if (dock) drawSandCompass() else drawSandPlanet()
                     SandKind.YOUTUBE -> drawSandYoutube()
+                    SandKind.MAIL -> drawSandMail()
+                    SandKind.CLOCK -> drawSandClock()
+                    SandKind.MAPS -> drawSandMaps()
+                    SandKind.WEATHER -> drawSandWeather()
+                    SandKind.NOTES -> drawSandNotes()
+                    SandKind.REMINDERS -> drawSandReminders()
                     else -> Unit
                 }
             }
@@ -213,20 +276,16 @@ private fun DrawScope.drawSandCamera() {
  
 private fun DrawScope.drawSandMessages() {
     val s = size.minDimension
-    drawRect(Brush.verticalGradient(listOf(Color(0xFF3BA3FF), Color(0xFF0A62E8))))
-    drawRoundRect(Color.White, Offset(0.19f * s, 0.25f * s), Size(0.62f * s, 0.44f * s), CornerRadius(0.22f * s))
+    drawRect(Brush.verticalGradient(listOf(Color(0xFF63E772), Color(0xFF1BAF38))))
+    drawOval(Color.White, Offset(0.16f * s, 0.22f * s), Size(0.68f * s, 0.50f * s))
     val tail = Path()
-    tail.moveTo(0.30f * s, 0.64f * s)
-    tail.lineTo(0.24f * s, 0.80f * s)
-    tail.lineTo(0.46f * s, 0.67f * s)
+    tail.moveTo(0.27f * s, 0.62f * s)
+    tail.lineTo(0.21f * s, 0.79f * s)
+    tail.lineTo(0.45f * s, 0.69f * s)
     tail.close()
     drawPath(tail, Color.White)
-    val dot = Color(0xFF1D74F0)
-    for (x in listOf(0.36f, 0.50f, 0.64f)) {
-        drawCircle(dot, radius = 0.045f * s, center = Offset(x * s, 0.47f * s))
-    }
 }
- 
+
 private fun DrawScope.drawSandPlanet() {
     val s = size.minDimension
     val c = center
@@ -284,4 +343,127 @@ private fun DrawScope.drawSandYoutube() {
     tri.close()
     drawPath(tri, Color.White)
 }
- 
+
+@Composable
+private fun SandCalendarFace(size: Dp) {
+    val today = remember { java.time.LocalDate.now() }
+    val dow = remember(today) {
+        today.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.KOREAN)
+    }
+    // Dp -> sp (글꼴 배율의 영향을 받지 않게)
+    val dowSize = with(LocalDensity.current) { (size * 0.17f).toSp() }
+    val daySize = with(LocalDensity.current) { (size * 0.52f).toSp() }
+    val dayLine = with(LocalDensity.current) { (size * 0.56f).toSp() }
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color.White, Color(0xFFEEF0F5)))),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(dow, fontSize = dowSize, fontWeight = FontWeight.SemiBold, color = Color(0xFFFF3B30))
+        Text(
+            today.dayOfMonth.toString(),
+            fontSize = daySize,
+            lineHeight = dayLine,
+            fontWeight = FontWeight.Light,
+            color = Color(0xFF1C1C1E)
+        )
+    }
+}
+
+private fun DrawScope.drawSandMail() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color(0xFF3FAEFF), Color(0xFF1572F0))))
+    drawRoundRect(Color.White, Offset(0.18f * s, 0.30f * s), Size(0.64f * s, 0.42f * s), CornerRadius(0.07f * s))
+    val flap = Path()
+    flap.moveTo(0.21f * s, 0.34f * s)
+    flap.lineTo(0.50f * s, 0.56f * s)
+    flap.lineTo(0.79f * s, 0.34f * s)
+    drawPath(flap, Color(0xFF2A86F5), style = Stroke(width = 0.035f * s, cap = StrokeCap.Round))
+}
+
+private fun DrawScope.drawSandClock() {
+    val s = size.minDimension
+    val c = center
+    drawRect(Brush.verticalGradient(listOf(Color(0xFF2E2E33), Color(0xFF050506))))
+    for (i in 0 until 12) {
+        val a = (i * PI / 6.0 - PI / 2.0).toFloat()
+        val major = i % 3 == 0
+        drawLine(
+            color = Color.White.copy(alpha = if (major) 0.95f else 0.6f),
+            start = Offset(c.x + cos(a) * s * (if (major) 0.32f else 0.35f), c.y + sin(a) * s * (if (major) 0.32f else 0.35f)),
+            end = Offset(c.x + cos(a) * s * 0.41f, c.y + sin(a) * s * 0.41f),
+            strokeWidth = s * (if (major) 0.026f else 0.014f),
+            cap = StrokeCap.Round
+        )
+    }
+    fun hand(deg: Float, len: Float, width: Float, color: Color) {
+        val a = ((deg - 90f) * PI / 180.0).toFloat()
+        drawLine(
+            color,
+            c,
+            Offset(c.x + cos(a) * s * len, c.y + sin(a) * s * len),
+            strokeWidth = s * width,
+            cap = StrokeCap.Round
+        )
+    }
+    hand(304.5f, 0.21f, 0.034f, Color.White)
+    hand(54f, 0.31f, 0.024f, Color.White)
+    hand(150f, 0.29f, 0.012f, Color(0xFFFF9F0A))
+    drawCircle(Color(0xFFFF9F0A), radius = 0.026f * s, center = c)
+}
+
+private fun DrawScope.drawSandMaps() {
+    val s = size.minDimension
+    drawRect(Color(0xFFEFF2E6))
+    drawCircle(Color(0xFF8AD07A), radius = 0.30f * s, center = Offset(0.14f * s, 0.84f * s))
+    drawCircle(Color(0xFFB0DE92), radius = 0.22f * s, center = Offset(0.88f * s, 0.14f * s))
+    drawLine(Color(0xFFFFD34D), Offset(0f, 0.76f * s), Offset(s, 0.30f * s), strokeWidth = 0.09f * s)
+    drawLine(Color.White, Offset(0.12f * s, 0f), Offset(0.60f * s, s), strokeWidth = 0.06f * s)
+    drawCircle(Color(0xFF2F7BF5), radius = 0.17f * s, center = center)
+    drawCircle(Color.White, radius = 0.17f * s, center = center, style = Stroke(0.026f * s))
+    val arrow = Path()
+    arrow.moveTo(0.50f * s, 0.37f * s)
+    arrow.lineTo(0.585f * s, 0.62f * s)
+    arrow.lineTo(0.50f * s, 0.565f * s)
+    arrow.lineTo(0.415f * s, 0.62f * s)
+    arrow.close()
+    drawPath(arrow, Color.White)
+}
+
+private fun DrawScope.drawSandWeather() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color(0xFF5AB2FF), Color(0xFF2A74EA))))
+    drawCircle(Color(0xFFFFD23F), radius = 0.15f * s, center = Offset(0.64f * s, 0.34f * s))
+    val cloud = Color.White.copy(alpha = 0.97f)
+    drawCircle(cloud, radius = 0.13f * s, center = Offset(0.36f * s, 0.64f * s))
+    drawCircle(cloud, radius = 0.18f * s, center = Offset(0.52f * s, 0.57f * s))
+    drawCircle(cloud, radius = 0.125f * s, center = Offset(0.70f * s, 0.64f * s))
+    drawRoundRect(cloud, Offset(0.26f * s, 0.62f * s), Size(0.56f * s, 0.17f * s), CornerRadius(0.085f * s))
+}
+
+private fun DrawScope.drawSandNotes() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color.White, Color(0xFFF1F2F5))))
+    drawRect(Color(0xFFFFD43B), Offset.Zero, Size(size.width, 0.22f * s))
+    for (y in listOf(0.38f, 0.52f, 0.66f, 0.80f)) {
+        drawLine(Color(0xFFD9DCE2), Offset(0f, y * s), Offset(size.width, y * s), strokeWidth = 0.014f * s)
+    }
+}
+
+private fun DrawScope.drawSandReminders() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color.White, Color(0xFFF1F2F5))))
+    val dots = listOf(Color(0xFFFF3B30), Color(0xFF0A84FF), Color(0xFFFF9F0A))
+    listOf(0.28f, 0.50f, 0.72f).forEachIndexed { i, y ->
+        drawCircle(dots[i], radius = 0.055f * s, center = Offset(0.24f * s, y * s))
+        drawLine(
+            Color(0xFFD9DCE2),
+            Offset(0.36f * s, y * s),
+            Offset(0.84f * s, y * s),
+            strokeWidth = 0.018f * s,
+            cap = StrokeCap.Round
+        )
+    }
+}
