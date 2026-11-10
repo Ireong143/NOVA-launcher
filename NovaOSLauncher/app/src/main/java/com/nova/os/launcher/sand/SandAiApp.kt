@@ -37,6 +37,7 @@ import com.nova.os.launcher.data.SearchUtil
 import com.nova.os.launcher.ui.components.CircleIconButton
 import com.nova.os.launcher.ui.components.ToolScaffold
 import com.nova.os.launcher.ui.theme.LocalNovaColors
+import java.net.URLEncoder
 import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
