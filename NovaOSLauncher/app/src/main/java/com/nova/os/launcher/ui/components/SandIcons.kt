@@ -1,5 +1,5 @@
 package com.nova.os.launcher.ui.components
- 
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,15 +38,16 @@ import com.nova.os.launcher.data.AppInfo
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
- 
+
 /** 시안에 나오는 기본 앱 종류. 설치된 앱과 매칭되면 시안풍으로 직접 그린 아이콘을 쓴다. */
 enum class SandKind {
     SETTINGS, GALLERY, PLAY, CAMERA, PHONE, MESSAGES, INTERNET, YOUTUBE, MUSIC,
     CALENDAR, MAIL, CLOCK, MAPS, WEATHER, NOTES, REMINDERS,
+    QR, PAINT, NEWS, TRANSLATE, GITHUB, AI, NOTIFY, SANDSET,
 }
- 
+
 private class SandSpec(val kind: SandKind, val packages: Set<String>, val labels: List<String>)
- 
+
 private val SandSpecs = listOf(
     SandSpec(SandKind.SETTINGS, setOf("com.android.settings"), listOf("설정", "Settings")),
     SandSpec(SandKind.GALLERY, setOf("com.sec.android.gallery3d"), listOf("갤러리", "Gallery")),
@@ -97,7 +98,7 @@ private val SandSpecs = listOf(
         listOf("미리 알림", "리마인더", "Reminder", "Tasks", "할 일")
     ),
 )
- 
+
 fun sandKindOf(app: AppInfo): SandKind? {
     val label = app.label.trim()
     for (s in SandSpecs) {
@@ -106,7 +107,7 @@ fun sandKindOf(app: AppInfo): SandKind? {
     }
     return null
 }
- 
+
 /** 콘셉트 보드의 홈 화면 배치(4열 × 3줄) */
 val SandDefaultFavorites = listOf(
     SandKind.MESSAGES, SandKind.CALENDAR, SandKind.GALLERY, SandKind.CAMERA,
@@ -141,7 +142,7 @@ fun List<AppInfo>.sandOrdered(order: List<SandKind>): List<AppInfo> =
         val i = sandKindOf(app)?.let { order.indexOf(it) } ?: -1
         if (i < 0) order.size + 1 else i
     }
- 
+
 @Composable
 fun SandAppIcon(kind: SandKind, size: Dp, modifier: Modifier = Modifier, dock: Boolean = false) {
     val shape = RoundedCornerShape(size * 0.27f)
@@ -158,13 +159,13 @@ fun SandAppIcon(kind: SandKind, size: Dp, modifier: Modifier = Modifier, dock: B
                     .background(Brush.verticalGradient(listOf(Color(0xFF63E772), Color(0xFF1BAF38)))),
                 contentAlignment = Alignment.Center
             ) { Icon(Icons.Rounded.Call, null, Modifier.size(size * 0.56f), tint = Color.White) }
- 
+
             SandKind.MUSIC -> Box(
                 Modifier.fillMaxSize()
                     .background(Brush.verticalGradient(listOf(Color(0xFFFF6A78), Color(0xFFE5213B)))),
                 contentAlignment = Alignment.Center
             ) { Icon(Icons.Rounded.MusicNote, null, Modifier.size(size * 0.62f), tint = Color.White) }
- 
+
             SandKind.CALENDAR -> SandCalendarFace(size)
 
             else -> Canvas(Modifier.fillMaxSize()) {
@@ -182,13 +183,21 @@ fun SandAppIcon(kind: SandKind, size: Dp, modifier: Modifier = Modifier, dock: B
                     SandKind.WEATHER -> drawSandWeather()
                     SandKind.NOTES -> drawSandNotes()
                     SandKind.REMINDERS -> drawSandReminders()
+                    SandKind.QR -> drawSandQr()
+                    SandKind.PAINT -> drawSandPaint()
+                    SandKind.NEWS -> drawSandNews()
+                    SandKind.TRANSLATE -> drawSandTranslate()
+                    SandKind.GITHUB -> drawSandGithub()
+                    SandKind.AI -> drawSandAi()
+                    SandKind.NOTIFY -> drawSandNotify()
+                    SandKind.SANDSET -> drawSandSettings()
                     else -> Unit
                 }
             }
         }
     }
 }
- 
+
 private fun DrawScope.drawSandSettings() {
     val s = size.minDimension
     val c = center
@@ -221,7 +230,7 @@ private fun DrawScope.drawSandSettings() {
     }
     drawCircle(Color(0xFF2E3037), radius = s * 0.07f, center = c)
 }
- 
+
 private fun DrawScope.drawSandGallery() {
     val s = size.minDimension
     val c = center
@@ -239,7 +248,7 @@ private fun DrawScope.drawSandGallery() {
         )
     }
 }
- 
+
 private fun DrawScope.drawSandPlay() {
     val s = size.minDimension
     drawRect(Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFECEFF5))))
@@ -261,7 +270,7 @@ private fun DrawScope.drawSandPlay() {
     poly(Color(0xFFFF3D4F), listOf(Offset(bx, by), Offset(ux, uy), Offset(px, py)))
     poly(Color(0xFFFFC800), listOf(Offset(tx, ty), Offset(cx, cy), Offset(ux, uy), Offset(px, py)))
 }
- 
+
 private fun DrawScope.drawSandCamera() {
     val s = size.minDimension
     drawRect(Brush.verticalGradient(listOf(Color(0xFFEDEEF2), Color(0xFFB4B6BE))))
@@ -273,7 +282,7 @@ private fun DrawScope.drawSandCamera() {
     drawCircle(Color(0xFF4A4C55), radius = 0.095f * s, center = lens)
     drawCircle(Color(0xFFB8BAC4), radius = 0.022f * s, center = Offset(0.72f * s, 0.38f * s))
 }
- 
+
 private fun DrawScope.drawSandMessages() {
     val s = size.minDimension
     drawRect(Brush.verticalGradient(listOf(Color(0xFF63E772), Color(0xFF1BAF38))))
@@ -304,7 +313,7 @@ private fun DrawScope.drawSandPlanet() {
         )
     }
 }
- 
+
 private fun DrawScope.drawSandCompass() {
     val s = size.minDimension
     val c = center
@@ -331,7 +340,7 @@ private fun DrawScope.drawSandCompass() {
     }
     drawCircle(Color.White, radius = 0.018f * s, center = c)
 }
- 
+
 private fun DrawScope.drawSandYoutube() {
     val s = size.minDimension
     drawRect(Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFEDEFF4))))
@@ -466,4 +475,100 @@ private fun DrawScope.drawSandReminders() {
             cap = StrokeCap.Round
         )
     }
+}
+
+private fun DrawScope.drawSandQr() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color.White, Color(0xFFE9ECF3))))
+    val k = Color(0xFF1C1C1E)
+    fun finder(x: Float, y: Float) {
+        drawRect(k, Offset(x * s, y * s), Size(0.24f * s, 0.24f * s), style = Stroke(0.045f * s))
+        drawRect(k, Offset((x + 0.07f) * s, (y + 0.07f) * s), Size(0.10f * s, 0.10f * s))
+    }
+    finder(0.14f, 0.14f)
+    finder(0.62f, 0.14f)
+    finder(0.14f, 0.62f)
+    for (p in listOf(0.62f to 0.62f, 0.76f to 0.62f, 0.62f to 0.76f, 0.76f to 0.76f, 0.69f to 0.69f)) {
+        drawRect(k, Offset(p.first * s, p.second * s), Size(0.09f * s, 0.09f * s))
+    }
+}
+
+private fun DrawScope.drawSandPaint() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color(0xFFFFA45C), Color(0xFFFF4F7B))))
+    drawOval(Color.White, Offset(0.15f * s, 0.22f * s), Size(0.70f * s, 0.58f * s))
+    drawCircle(Color(0xFFFF6A5B), radius = 0.05f * s, center = Offset(0.34f * s, 0.42f * s))
+    drawCircle(Color(0xFFFFC53D), radius = 0.05f * s, center = Offset(0.50f * s, 0.34f * s))
+    drawCircle(Color(0xFF3B82F6), radius = 0.05f * s, center = Offset(0.66f * s, 0.42f * s))
+    drawCircle(Color(0xFF34C759), radius = 0.05f * s, center = Offset(0.64f * s, 0.58f * s))
+    drawCircle(Color(0xFFFF7A6A), radius = 0.07f * s, center = Offset(0.40f * s, 0.62f * s))
+}
+
+private fun DrawScope.drawSandNews() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color(0xFFFF6B7A), Color(0xFFE5234A))))
+    val w = 0.09f * s
+    drawLine(Color.White, Offset(0.32f * s, 0.70f * s), Offset(0.32f * s, 0.30f * s), strokeWidth = w, cap = StrokeCap.Round)
+    drawLine(Color.White, Offset(0.32f * s, 0.30f * s), Offset(0.68f * s, 0.70f * s), strokeWidth = w, cap = StrokeCap.Round)
+    drawLine(Color.White, Offset(0.68f * s, 0.70f * s), Offset(0.68f * s, 0.30f * s), strokeWidth = w, cap = StrokeCap.Round)
+}
+
+private fun DrawScope.drawSandTranslate() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color(0xFF5B9BFF), Color(0xFF2A5BE8))))
+    drawRoundRect(Color.White, Offset(0.14f * s, 0.18f * s), Size(0.46f * s, 0.40f * s), CornerRadius(0.09f * s))
+    drawRoundRect(Color.White.copy(alpha = 0.75f), Offset(0.40f * s, 0.42f * s), Size(0.46f * s, 0.40f * s), CornerRadius(0.09f * s))
+    val blue = Color(0xFF2A5BE8)
+    drawLine(blue, Offset(0.23f * s, 0.30f * s), Offset(0.51f * s, 0.30f * s), strokeWidth = 0.035f * s, cap = StrokeCap.Round)
+    drawLine(blue, Offset(0.23f * s, 0.41f * s), Offset(0.44f * s, 0.41f * s), strokeWidth = 0.035f * s, cap = StrokeCap.Round)
+    drawLine(blue, Offset(0.49f * s, 0.55f * s), Offset(0.77f * s, 0.55f * s), strokeWidth = 0.035f * s, cap = StrokeCap.Round)
+    drawLine(blue, Offset(0.49f * s, 0.66f * s), Offset(0.70f * s, 0.66f * s), strokeWidth = 0.035f * s, cap = StrokeCap.Round)
+}
+
+private fun DrawScope.drawSandGithub() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color(0xFF3A3F4A), Color(0xFF0D1117))))
+    drawCircle(Color.White, radius = 0.27f * s, center = Offset(0.5f * s, 0.55f * s))
+    val l = Path()
+    l.moveTo(0.27f * s, 0.42f * s)
+    l.lineTo(0.30f * s, 0.16f * s)
+    l.lineTo(0.47f * s, 0.30f * s)
+    l.close()
+    drawPath(l, Color.White)
+    val r = Path()
+    r.moveTo(0.73f * s, 0.42f * s)
+    r.lineTo(0.70f * s, 0.16f * s)
+    r.lineTo(0.53f * s, 0.30f * s)
+    r.close()
+    drawPath(r, Color.White)
+    drawCircle(Color(0xFF0D1117), radius = 0.035f * s, center = Offset(0.41f * s, 0.54f * s))
+    drawCircle(Color(0xFF0D1117), radius = 0.035f * s, center = Offset(0.59f * s, 0.54f * s))
+}
+
+private fun DrawScope.drawSandAi() {
+    val s = size.minDimension
+    drawRect(Brush.linearGradient(listOf(Color(0xFF9B6BFF), Color(0xFF3B82F6))))
+    val star = Path()
+    star.moveTo(0.46f * s, 0.14f * s)
+    star.lineTo(0.54f * s, 0.40f * s)
+    star.lineTo(0.80f * s, 0.48f * s)
+    star.lineTo(0.54f * s, 0.56f * s)
+    star.lineTo(0.46f * s, 0.84f * s)
+    star.lineTo(0.38f * s, 0.56f * s)
+    star.lineTo(0.12f * s, 0.48f * s)
+    star.lineTo(0.38f * s, 0.40f * s)
+    star.close()
+    drawPath(star, Color.White)
+    drawCircle(Color.White, radius = 0.05f * s, center = Offset(0.78f * s, 0.24f * s))
+    drawCircle(Color.White.copy(alpha = 0.8f), radius = 0.035f * s, center = Offset(0.74f * s, 0.74f * s))
+}
+
+private fun DrawScope.drawSandNotify() {
+    val s = size.minDimension
+    drawRect(Brush.verticalGradient(listOf(Color(0xFFFF8A5B), Color(0xFFE5333A))))
+    drawCircle(Color.White, radius = 0.20f * s, center = Offset(0.5f * s, 0.44f * s))
+    drawRoundRect(Color.White, Offset(0.30f * s, 0.44f * s), Size(0.40f * s, 0.24f * s), CornerRadius(0.04f * s))
+    drawRoundRect(Color.White, Offset(0.24f * s, 0.64f * s), Size(0.52f * s, 0.06f * s), CornerRadius(0.03f * s))
+    drawCircle(Color.White, radius = 0.06f * s, center = Offset(0.5f * s, 0.78f * s))
+    drawCircle(Color.White, radius = 0.04f * s, center = Offset(0.5f * s, 0.20f * s))
 }

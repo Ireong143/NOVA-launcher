@@ -37,6 +37,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.nova.os.launcher.sand.SandBell
+import com.nova.os.launcher.sand.SandConfig
 
 /** 홈 상단 패널에 표시할 시스템 상태. */
 @Immutable
@@ -158,26 +160,30 @@ fun rememberSysStatus(): State<SysStatus> {
 }
 
 @Composable
-fun HomeStatusIcons(status: SysStatus, tint: Color) {
+fun HomeStatusIcons(status: SysStatus, tint: Color, onBell: () -> Unit = {}) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        // 소리 상태: 소리/진동/무음
-        when (status.ringer) {
-            AudioManager.RINGER_MODE_SILENT ->
-                Icon(Icons.Rounded.VolumeOff, "무음", Modifier.size(16.dp), tint = tint)
-            AudioManager.RINGER_MODE_VIBRATE ->
-                Icon(Icons.Rounded.Vibration, "진동", Modifier.size(16.dp), tint = tint)
-            else ->
-                Icon(Icons.Rounded.VolumeUp, "소리", Modifier.size(16.dp), tint = tint.copy(alpha = 0.55f))
+        // 소리 상태: 소리/진동/무음 ("더 많은 설정"에서 끌 수 있음)
+        if (SandConfig.showSound) {
+            when (status.ringer) {
+                AudioManager.RINGER_MODE_SILENT ->
+                    Icon(Icons.Rounded.VolumeOff, "무음", Modifier.size(16.dp), tint = tint)
+                AudioManager.RINGER_MODE_VIBRATE ->
+                    Icon(Icons.Rounded.Vibration, "진동", Modifier.size(16.dp), tint = tint)
+                else ->
+                    Icon(Icons.Rounded.VolumeUp, "소리", Modifier.size(16.dp), tint = tint.copy(alpha = 0.55f))
+            }
         }
         // 알림 상태: 방해 금지가 켜져 있으면 알림 꺼짐 표시
         if (status.dnd) {
             Icon(Icons.Rounded.NotificationsOff, "방해 금지", Modifier.size(15.dp), tint = tint)
         }
-        CellBars(connected = status.cell, tint = tint)
-        WifiGlyph(connected = status.wifi, level = status.wifiLevel, tint = tint)
+        if (SandConfig.showCell) CellBars(connected = status.cell, tint = tint)
+        if (SandConfig.showWifi) WifiGlyph(connected = status.wifi, level = status.wifiLevel, tint = tint)
+        // 새 알림 종(점 배지) → 알림 창
+        if (SandConfig.showBell) SandBell(tint, onBell)
     }
 }
 
