@@ -178,7 +178,8 @@ private fun BoxScope.BannerLayer() {
     ) {
         val n = last.n
         if (n != null) {
-            Box(Modifier.statusBarsPadding().padding(top = 6.dp)) {
+            val bannerTop = if (SandConfig.hideSystemBar) Modifier.padding(top = sandStatusBarHeight()) else Modifier.statusBarsPadding()
+            Box(bannerTop.padding(top = 6.dp)) {
                 SandBannerCard(n, { SandNotifications.open(n) }, { SandNotifications.banner = null })
             }
         }

@@ -592,14 +592,19 @@ private fun FavoritesGrid(
 
     // 콘셉트 보드의 앱(메시지, 캘린더, 사진, 카메라 ...)을 앞에 두고 나머지는 기존 즐겨찾기 순서를 유지.
     val ordered = remember(apps) { apps.sandOrdered(SandDefaultFavorites) }
-    val items = ArrayList<HomeItem>()
-    for (a in ordered) items.add(HomeItem(a, null))
     val kinds = ordered.mapNotNull { sandKindOf(it) }.toSet()
-    // 홈에 추가해 둔 SAND 기본 앱(기본값: 캘린더, 지도). 같은 종류의 실제 앱이 있으면 중복해서 보여주지 않는다.
+    // 홈에 추가해 둔 SAND 기본 앱(기본값: 캘린더, 지도, AI, 터미널). 같은 종류의 실제 앱이 있으면 중복해서 보여주지 않는다.
+    val builtinPages = ArrayList<SandPage>()
     for (name in SandConfig.homeBuiltins) {
         val page = SandPage.values().firstOrNull { it.name == name } ?: continue
         if (page == SandPage.CALENDAR && SandKind.CALENDAR in kinds) continue
         if (page == SandPage.MAP && SandKind.MAPS in kinds) continue
+        builtinPages.add(page)
+    }
+    // SAND 앱이 들어갈 칸을 먼저 확보하고 남은 칸에 즐겨찾기를 채운다(칸이 모자라 SAND 앱이 잘려 나가지 않게).
+    val items = ArrayList<HomeItem>()
+    for (a in ordered.take(maxOf(0, cols * rows - builtinPages.size))) items.add(HomeItem(a, null))
+    for (page in builtinPages) {
         val hint = when (page) {
             SandPage.CALENDAR -> 1
             SandPage.MAP -> 6

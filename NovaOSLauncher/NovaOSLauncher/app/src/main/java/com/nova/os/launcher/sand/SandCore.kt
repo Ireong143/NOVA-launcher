@@ -128,7 +128,7 @@ object SandConfig {
     var launchFx by mutableStateOf(true)
 
     /** 홈 그리드에 직접 추가한 SAND 기본 앱(SandPage 이름) */
-    var homeBuiltins by mutableStateOf<List<String>>(listOf("CALENDAR", "MAP"))
+    var homeBuiltins by mutableStateOf<List<String>>(listOf("CALENDAR", "MAP", "AI", "TERMINAL"))
 
     fun init(context: Context) {
         if (prefs != null) return
@@ -146,7 +146,14 @@ object SandConfig {
         mondayFirst = p.getBoolean("mondayFirst", false)
         hideSystemBar = p.getBoolean("hideSystemBar", false)
         launchFx = p.getBoolean("launchFx", true)
-        homeBuiltins = p.getString("homeBuiltins", "CALENDAR|MAP").orEmpty().split('|').filter { it.isNotBlank() }
+        homeBuiltins = p.getString("homeBuiltins", "CALENDAR|MAP|AI|TERMINAL").orEmpty().split('|').filter { it.isNotBlank() }
+        // 이전 버전을 쓰던 기기: AI 에이전트와 터미널을 홈에 한 번만 추가한다(빼기 버튼으로 지우면 다시 생기지 않는다).
+        if (p.getInt("homeBuiltinsV", 1) < 2) {
+            var l = homeBuiltins
+            for (n in listOf("AI", "TERMINAL")) if (n !in l) l = l + n
+            homeBuiltins = l
+            p.edit().putInt("homeBuiltinsV", 2).putString("homeBuiltins", l.joinToString("|")).apply()
+        }
     }
 
     /** 값을 바꾸고 바로 저장한다: `SandConfig.edit { homeRows = 3 }` */
@@ -187,7 +194,7 @@ object SandConfig {
         mondayFirst = false
         hideSystemBar = false
         launchFx = true
-        homeBuiltins = listOf("CALENDAR", "MAP")
+        homeBuiltins = listOf("CALENDAR", "MAP", "AI", "TERMINAL")
         save()
     }
 }

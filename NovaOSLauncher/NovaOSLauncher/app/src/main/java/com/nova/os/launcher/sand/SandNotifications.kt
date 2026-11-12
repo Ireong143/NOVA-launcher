@@ -4,10 +4,17 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.Drawable
+import android.os.Build
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
@@ -39,11 +47,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
@@ -202,23 +214,152 @@ fun SandBell(tint: Color, onClick: () -> Unit) {
     }
 }
 
-/** 새 알림이 올 때 홈 위로 내려오는 유리 배너. */
+/** 알림 앱의 아이콘 모양(배경 없이)과 그 아이콘에서 뽑은 대표색. */
+class SandNotifIcon(val glyph: ImageBitmap, val tint: Color)
+
+object SandNotifIcons {
+    private val cache = HashMap<String, SandNotifIcon>()
+
+    fun of(context: Context, pkg: String): SandNotifIcon? {
+        val hit = cache[pkg]
+        if (hit != null) return hit
+        val made = try {
+            make(context, pkg)
+        } catch (e: Exception) {
+            null
+        }
+        if (made != null) cache[pkg] = made
+        return made
+    }
+
+    private fun fresh(d: Drawable): Drawable = d.constantState?.newDrawable()?.mutate() ?: d
+
+    private fun render(d: Drawable, px: Int): Bitmap {
+        val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+        val dd = fresh(d)
+        dd.setBounds(0, 0, px, px)
+        dd.draw(Canvas(bmp))
+        return bmp
+    }
+
+    /** 채도와 밝기가 높은 픽셀을 더 크게 반영한 평균색. 색이 거의 없으면 전체 평균. */
+    private fun dominant(b: Bitmap): Color {
+        var r = 0.0
+        var g = 0.0
+        var bl = 0.0
+        var w = 0.0
+        var ar = 0.0
+        var ag = 0.0
+        var ab = 0.0
+        var n = 0
+        val hsv = FloatArray(3)
+        for (y in 0 until b.height) {
+            for (x in 0 until b.width) {
+                val p = b.getPixel(x, y)
+                if (android.graphics.Color.alpha(p) < 200) continue
+                val pr = android.graphics.Color.red(p)
+                val pg = android.graphics.Color.green(p)
+                val pb = android.graphics.Color.blue(p)
+                android.graphics.Color.colorToHSV(p, hsv)
+                val wt = (hsv[1] * hsv[2]).toDouble()
+                r += pr * wt
+                g += pg * wt
+                bl += pb * wt
+                w += wt
+                ar += pr
+                ag += pg
+                ab += pb
+                n++
+            }
+        }
+        if (n == 0) return Color(0xFF8E8E93)
+        return if (w > n * 0.08) {
+            Color((r / w).toInt(), (g / w).toInt(), (bl / w).toInt())
+        } else {
+            Color((ar / n).toInt(), (ag / n).toInt(), (ab / n).toInt())
+        }
+    }
+
+    private fun make(context: Context, pkg: String): SandNotifIcon? {
+        val d = context.packageManager.getApplicationIcon(pkg)
+        val tint = dominant(render(d, 48))
+        val size = 144
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val cv = Canvas(bmp)
+        val fg = if (Build.VERSION.SDK_INT >= 26 && d is AdaptiveIconDrawable) d.foreground else null
+        if (fg != null) {
+            // 어댑티브 아이콘은 뒷배경을 빼고 앞면(모양)만 그려서, 아이콘 배경이 알림 색이 되게 한다.
+            val o = (size * 0.125f).toInt()
+            val f = fresh(fg)
+            f.setBounds(-o, -o, size + o, size + o)
+            f.draw(cv)
+        } else {
+            val o = (size * 0.1f).toInt()
+            val f = fresh(d)
+            f.setBounds(o, o, size - o, size - o)
+            f.draw(cv)
+        }
+        return SandNotifIcon(bmp.asImageBitmap(), tint)
+    }
+}
+
+/** 알림 아이콘 판: 알림 배경과 같은 계열의 색 위에 앱 아이콘 모양만 올린다. */
+@Composable
+fun SandNotifIconTile(icon: SandNotifIcon?, size: Dp) {
+    val c = LocalNovaColors.current
+    val shape = RoundedCornerShape(size * 0.3f)
+    Box(
+        Modifier
+            .size(size)
+            .clip(shape)
+            .background((icon?.tint ?: c.accent).copy(alpha = 0.30f)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (icon != null) {
+            Image(bitmap = icon.glyph, contentDescription = null, modifier = Modifier.size(size))
+        } else {
+            Icon(Icons.Rounded.Notifications, null, Modifier.size(size * 0.55f), tint = c.text)
+        }
+    }
+}
+
+/** 새 알림이 올 때 홈 위로 내려오는 작은 유리 배너. 배경은 알림 앱 아이콘의 색을 따라간다. */
 @Composable
 fun SandBannerCard(n: SandNotif, onTap: () -> Unit, onDismiss: () -> Unit) {
     val c = LocalNovaColors.current
-    GlassCard(Modifier.fillMaxWidth().padding(horizontal = 14.dp), strong = true, onClick = onTap) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Row {
-                    Text(n.appName, fontSize = 12.sp, color = c.accent, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    Spacer(Modifier.width(8.dp))
-                    Text("지금", fontSize = 12.sp, color = c.textSecondary)
-                }
-                if (n.title.isNotBlank()) Text(n.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (n.text.isNotBlank()) Text(n.text, fontSize = 13.sp, color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    val ctx = LocalContext.current
+    val icon = remember(n.pkg) { SandNotifIcons.of(ctx, n.pkg) }
+    val tint = icon?.tint ?: c.accent
+    val shape = RoundedCornerShape(22.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 30.dp)
+            .clip(shape)
+            .background(c.panel)
+            .background(tint.copy(alpha = 0.34f))
+            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)))
+            .border(0.6.dp, Color.White.copy(alpha = 0.18f), shape)
+            .clickable { onTap() }
+            .padding(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SandNotifIconTile(icon, 34.dp)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(n.appName, fontSize = 11.sp, color = c.text.copy(alpha = 0.75f), fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Spacer(Modifier.width(6.dp))
+                Text("지금", fontSize = 11.sp, color = c.textSecondary)
             }
-            CircleIconButton(Icons.Rounded.Close, "닫기", onDismiss, size = 34.dp)
+            if (n.title.isNotBlank()) {
+                Text(n.title, fontSize = 13.sp, color = c.text, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (n.text.isNotBlank()) {
+                Text(n.text, fontSize = 12.sp, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
+        CircleIconButton(Icons.Rounded.Close, "닫기", onDismiss, size = 28.dp)
     }
 }
 
@@ -281,7 +422,9 @@ fun SandNotificationScreen(onClose: () -> Unit) {
             ) {
                 items(SandNotifications.items.toList(), key = { it.key }) { n ->
                     GlassCard(Modifier.fillMaxWidth(), onClick = { SandNotifications.open(n) }) {
-                        Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            SandNotifIconTile(remember(n.pkg) { SandNotifIcons.of(ctx, n.pkg) }, 38.dp)
+                            Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Row {
                                     Text(n.appName, fontSize = 12.sp, color = c.accent, fontWeight = FontWeight.SemiBold, maxLines = 1)
